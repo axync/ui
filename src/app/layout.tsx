@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Axync - Cross-Chain Settlement',
-  description: 'Move value across chains. No bridge required. Verified by zero-knowledge proofs.',
+  description: 'Move value across chains. No bridge required. Every settlement verified by zero-knowledge proofs.',
 }
 
 export default function RootLayout({
