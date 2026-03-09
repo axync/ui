@@ -12,6 +12,13 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
-          username: root
+          username: deploy
           key: ${{ secrets.DEPLOY_KEY }}
-          script: /opt/axync/scripts/deploy-ui.sh
+          script: |
+            set -e
+            cd /opt/axync/ui
+            git pull origin main
+            npm install --production=false
+            npm run build
+            pm2 restart axync-ui || pm2 start npm --name axync-ui -- start
+            echo "✅ Frontend deployed successfully"

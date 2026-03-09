@@ -167,6 +167,13 @@ export default function Withdrawals() {
       // Read current withdrawals root from contract
       const withdrawalsRoot = await withdrawalContract.withdrawalsRoot()
 
+      if (withdrawalsRoot === ethers.ZeroHash) {
+        setError('Withdrawal system is not yet initialized. Please try again later or contact support.')
+        setStep('ready_to_claim')
+        setLoading(false)
+        return
+      }
+
       // Build WithdrawalData struct
       const amountBigInt = parseAmount(amount)
       const recipient = to || address
@@ -188,14 +195,13 @@ export default function Withdrawals() {
       // Placeholder proofs (accepted by testnet contracts)
       const merkleProof = ethers.hexlify(ethers.randomBytes(64))
       const zkProof = ethers.hexlify(ethers.randomBytes(32))
-      const rootToUse = withdrawalsRoot !== ethers.ZeroHash ? withdrawalsRoot : ethers.ZeroHash
 
       const tx = await withdrawalContract.withdraw(
         withdrawalData,
         merkleProof,
         nullifier,
         zkProof,
-        rootToUse,
+        withdrawalsRoot,
         { gasLimit: 300000 }
       )
 
