@@ -1,6 +1,6 @@
 /**
  * Application Configuration Constants
- * 
+ *
  * Centralized configuration for tokens, chains, and other app settings
  */
 
@@ -21,14 +21,16 @@ export const CHAINS = {
   ETHEREUM_SEPOLIA: {
     id: 11155111,
     name: 'Ethereum Sepolia',
-    depositContract: process.env.NEXT_PUBLIC_ETHEREUM_DEPOSIT_CONTRACT || '0x261ecf36739D5BD02D1895D54f066762881878da',
-    withdrawalContract: process.env.NEXT_PUBLIC_ETHEREUM_WITHDRAWAL_CONTRACT || '0x8f7c28682710AC962c39516140Fae8567D555fA1',
+    depositContract: process.env.NEXT_PUBLIC_ETHEREUM_DEPOSIT_CONTRACT || '0x4E059D94012d494fBcFfC89C2E6ee4Ea853cA92F',
+    withdrawalContract: process.env.NEXT_PUBLIC_ETHEREUM_WITHDRAWAL_CONTRACT || '0x2a1e5D09490b61ca9E745ebdE4AF103165b72892',
+    verifierContract: process.env.NEXT_PUBLIC_ETHEREUM_VERIFIER_CONTRACT || '0x6eaE425A7830349F7716b8AaF8ff5e76E5c6d6a2',
   },
   BASE_SEPOLIA: {
     id: 84532,
     name: 'Base Sepolia',
-    depositContract: process.env.NEXT_PUBLIC_BASE_DEPOSIT_CONTRACT || '0x4aa15cAc206B4CAB551Dd70395cA4cf80db6EcAC',
-    withdrawalContract: process.env.NEXT_PUBLIC_BASE_WITHDRAWAL_CONTRACT || '0xc5964A6C8409aD8e7d0276bcDc5ea4E2Dd02df2e',
+    depositContract: process.env.NEXT_PUBLIC_BASE_DEPOSIT_CONTRACT || '0x807d220AC80c59aC9F8C6C3d86211F04D80b9c53',
+    withdrawalContract: process.env.NEXT_PUBLIC_BASE_WITHDRAWAL_CONTRACT || '0xC0659E7a7b4E81AFe607A7aECd57A7E8E23Ba164',
+    verifierContract: process.env.NEXT_PUBLIC_BASE_VERIFIER_CONTRACT || '0x53743f261a8941Edb71973F1Ae98C69D7a6dBDda',
   },
 } as const
 
@@ -45,6 +47,12 @@ export const DEFAULTS = {
   CHAIN_QUOTE: CHAINS.BASE_SEPOLIA.id,
   PRICE_RATE: '1', // 1:1 exchange rate by default
 } as const
+
+// Withdrawal Contract ABI (only what we need)
+export const WITHDRAWAL_CONTRACT_ABI = [
+  'function withdraw((address user, uint256 assetId, uint256 amount, uint256 chainId) withdrawalData, bytes merkleProof, bytes32 nullifier, bytes zkProof, bytes32 withdrawalsRoot_) external',
+  'function withdrawalsRoot() view returns (bytes32)',
+] as const
 
 // Helper function to get deposit contract by chain ID
 export function getDepositContract(chainId: number): string {
@@ -64,3 +72,7 @@ export function getChainName(chainId: number): string {
   return chain?.name || `Chain ${chainId}`
 }
 
+// Chain IDs for network switching
+export function getChainHex(chainId: number): string {
+  return '0x' + chainId.toString(16)
+}

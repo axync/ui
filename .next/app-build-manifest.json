@@ -12,19 +12,8 @@
       "static/chunks/fd9d1056-5f55067fad1d0619.js",
       "static/chunks/117-19e2607edffa9051.js",
       "static/chunks/main-app-7413925a85d37aae.js",
-      "static/css/c6f80f5b945151cf.css",
+      "static/css/6a40685d9b558e43.css",
       "static/chunks/app/layout-0d42fa3f1d8e535f.js"
-    ],
-    "/deals/[dealId]/page": [
-      "static/chunks/webpack-a3c37fcbf859f6f9.js",
-      "static/chunks/fd9d1056-5f55067fad1d0619.js",
-      "static/chunks/117-19e2607edffa9051.js",
-      "static/chunks/main-app-7413925a85d37aae.js",
-      "static/chunks/614-647c2cf3190aa8f7.js",
-      "static/chunks/662-d5a64d94ae98889f.js",
-      "static/chunks/288-e5272f1862ccbdcc.js",
-      "static/chunks/359-c9c8343977677b1a.js",
-      "static/chunks/app/deals/[dealId]/page-5901494ebad2aecb.js"
     ],
     "/account/page": [
       "static/chunks/webpack-a3c37fcbf859f6f9.js",
@@ -33,18 +22,19 @@
       "static/chunks/main-app-7413925a85d37aae.js",
       "static/chunks/614-647c2cf3190aa8f7.js",
       "static/chunks/662-d5a64d94ae98889f.js",
-      "static/chunks/359-c9c8343977677b1a.js",
-      "static/chunks/app/account/page-5cc713bf1c34a61a.js"
+      "static/chunks/359-1be83315a50b4b1d.js",
+      "static/chunks/app/account/page-85d1484b8a3f9859.js"
     ],
-    "/deals/page": [
+    "/deals/[dealId]/page": [
       "static/chunks/webpack-a3c37fcbf859f6f9.js",
       "static/chunks/fd9d1056-5f55067fad1d0619.js",
       "static/chunks/117-19e2607edffa9051.js",
       "static/chunks/main-app-7413925a85d37aae.js",
       "static/chunks/614-647c2cf3190aa8f7.js",
       "static/chunks/662-d5a64d94ae98889f.js",
-      "static/chunks/359-c9c8343977677b1a.js",
-      "static/chunks/app/deals/page-bd1d48dd3140b21a.js"
+      "static/chunks/438-39285a7092836159.js",
+      "static/chunks/359-1be83315a50b4b1d.js",
+      "static/chunks/app/deals/[dealId]/page-c0f66d0a130a9c73.js"
     ],
     "/page": [
       "static/chunks/webpack-a3c37fcbf859f6f9.js",
@@ -61,9 +51,9 @@
       "static/chunks/main-app-7413925a85d37aae.js",
       "static/chunks/614-647c2cf3190aa8f7.js",
       "static/chunks/662-d5a64d94ae98889f.js",
-      "static/chunks/288-e5272f1862ccbdcc.js",
-      "static/chunks/359-c9c8343977677b1a.js",
-      "static/chunks/app/deals/create/page-3005fc83533e1232.js"
+      "static/chunks/438-39285a7092836159.js",
+      "static/chunks/359-1be83315a50b4b1d.js",
+      "static/chunks/app/deals/create/page-645c88acdf557041.js"
     ],
     "/withdrawals/page": [
       "static/chunks/webpack-a3c37fcbf859f6f9.js",
@@ -72,9 +62,19 @@
       "static/chunks/main-app-7413925a85d37aae.js",
       "static/chunks/614-647c2cf3190aa8f7.js",
       "static/chunks/662-d5a64d94ae98889f.js",
-      "static/chunks/288-e5272f1862ccbdcc.js",
-      "static/chunks/359-c9c8343977677b1a.js",
-      "static/chunks/app/withdrawals/page-531771aaae450ad1.js"
+      "static/chunks/438-39285a7092836159.js",
+      "static/chunks/359-1be83315a50b4b1d.js",
+      "static/chunks/app/withdrawals/page-dfbd744417e4b8b8.js"
+    ],
+    "/deals/page": [
+      "static/chunks/webpack-a3c37fcbf859f6f9.js",
+      "static/chunks/fd9d1056-5f55067fad1d0619.js",
+      "static/chunks/117-19e2607edffa9051.js",
+      "static/chunks/main-app-7413925a85d37aae.js",
+      "static/chunks/614-647c2cf3190aa8f7.js",
+      "static/chunks/662-d5a64d94ae98889f.js",
+      "static/chunks/359-1be83315a50b4b1d.js",
+      "static/chunks/app/deals/page-bdb1f2dadc968504.js"
     ]
   }
 }
