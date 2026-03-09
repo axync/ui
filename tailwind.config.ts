@@ -11,25 +11,25 @@ const config: Config = {
       colors: {
         // Brand silver palette
         silver: {
-          hi: '#E2E8F0',
-          mid: '#CBD5E1',
-          lo: '#94A3B8',
+          hi: '#F1F5F9',
+          mid: '#E2E8F0',
+          lo: '#CBD5E1',
         },
         // Dark backgrounds
-        base: '#09090B',
-        surface: '#0F0F12',
-        elevated: '#18181B',
+        base: '#08080C',
+        surface: '#111118',
+        elevated: '#1A1A24',
         // Borders
-        edge: '#1C1C22',
+        edge: '#2A2A38',
         // Text
-        bright: '#FAFAFA',
-        dim: '#71717A',
-        muted: '#3F3F46',
+        bright: '#F8FAFC',
+        dim: '#A1A1AA',
+        muted: '#71717A',
         // Semantic
-        success: '#22C55E',
-        danger: '#EF4444',
-        warning: '#F59E0B',
-        info: '#3B82F6',
+        success: '#34D399',
+        danger: '#F87171',
+        warning: '#FBBF24',
+        info: '#60A5FA',
       },
       fontFamily: {
         heading: ['Space Grotesk', 'sans-serif'],

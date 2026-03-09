@@ -22,7 +22,7 @@ export default function Home() {
       <div className="py-12">
         {/* Hero */}
         <div className="text-center mb-16 relative">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-[radial-gradient(ellipse,rgba(148,163,184,0.04)_0%,transparent_70%)] pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-[radial-gradient(ellipse,rgba(203,213,225,0.06)_0%,transparent_70%)] pointer-events-none" />
 
           <div className="relative">
             <p className="font-mono text-[10px] tracking-[4px] uppercase text-silver-lo mb-4">

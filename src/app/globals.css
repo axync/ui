@@ -5,8 +5,8 @@
 @tailwind utilities;
 
 body {
-  background: #09090B;
-  color: #A1A1AA;
+  background: #08080C;
+  color: #D4D4D8;
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -14,7 +14,7 @@ body {
 
 /* Silver gradient text utility */
 .text-silver-gradient {
-  background: linear-gradient(135deg, #E2E8F0, #CBD5E1, #94A3B8);
+  background: linear-gradient(135deg, #F1F5F9, #E2E8F0, #CBD5E1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -22,8 +22,8 @@ body {
 
 /* Silver gradient button */
 .btn-silver {
-  background: linear-gradient(135deg, #E2E8F0, #CBD5E1, #94A3B8);
-  color: #09090B;
+  background: linear-gradient(135deg, #F1F5F9, #E2E8F0, #CBD5E1);
+  color: #08080C;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
   border-radius: 10px;
@@ -45,8 +45,8 @@ body {
 /* Outline button */
 .btn-outline {
   background: transparent;
-  border: 1px solid #1C1C22;
-  color: #A1A1AA;
+  border: 1px solid #2A2A38;
+  color: #D4D4D8;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 500;
   border-radius: 10px;
@@ -55,15 +55,15 @@ body {
   transition: border-color 0.2s, color 0.2s;
 }
 .btn-outline:hover {
-  border-color: #3F3F46;
-  color: #E2E8F0;
+  border-color: #52525B;
+  color: #F1F5F9;
 }
 
 /* Danger button */
 .btn-danger {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #EF4444;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  color: #F87171;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 500;
   border-radius: 10px;
@@ -72,14 +72,14 @@ body {
   transition: background 0.2s;
 }
 .btn-danger:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(248, 113, 113, 0.2);
 }
 
 /* Form inputs */
 input, select, textarea {
-  background: #09090B !important;
-  border: 1px solid #1C1C22 !important;
-  color: #FAFAFA !important;
+  background: #0E0E14 !important;
+  border: 1px solid #2A2A38 !important;
+  color: #F8FAFC !important;
   border-radius: 10px !important;
   padding: 10px 14px !important;
   font-family: 'Inter', sans-serif;
@@ -88,25 +88,25 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus {
   outline: none !important;
-  border-color: #94A3B8 !important;
-  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.2) !important;
+  border-color: #CBD5E1 !important;
+  box-shadow: 0 0 0 1px rgba(203, 213, 225, 0.2) !important;
 }
 input::placeholder {
-  color: #3F3F46 !important;
+  color: #52525B !important;
 }
 
 /* Select arrow fix for dark theme */
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717A' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23A1A1AA' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 12px center !important;
   padding-right: 36px !important;
 }
 
 select option {
-  background: #0F0F12;
-  color: #FAFAFA;
+  background: #111118;
+  color: #F8FAFC;
 }
 
 /* Scrollbar styling */
@@ -114,12 +114,12 @@ select option {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #09090B;
+  background: #08080C;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272A;
+  background: #3F3F46;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3F3F46;
+  background: #52525B;
 }

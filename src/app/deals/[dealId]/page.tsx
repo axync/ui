@@ -222,7 +222,7 @@ export default function DealDetails() {
                 <div className="font-heading text-2xl font-bold text-bright mt-1">
                   {formatAmount(BigInt(deal.amount_base))} ETH
                 </div>
-                {deal.amount_remaining && BigInt(deal.amount_remaining) !== BigInt(deal.amount_base) && (
+                {deal.amount_remaining != null && BigInt(deal.amount_remaining) > 0n && BigInt(deal.amount_remaining) !== BigInt(deal.amount_base) && (
                   <div className="font-mono text-xs text-dim mt-1">
                     Remaining: {formatAmount(BigInt(deal.amount_remaining))}
                   </div>

@@ -1,9 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/account/page": "app/account/page.js",
-  "/deals/[dealId]/page": "app/deals/[dealId]/page.js",
-  "/page": "app/page.js",
+  "/deals/page": "app/deals/page.js",
   "/deals/create/page": "app/deals/create/page.js",
+  "/account/page": "app/account/page.js",
+  "/page": "app/page.js",
   "/withdrawals/page": "app/withdrawals/page.js",
-  "/deals/page": "app/deals/page.js"
+  "/deals/[dealId]/page": "app/deals/[dealId]/page.js"
 }
