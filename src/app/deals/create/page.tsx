@@ -1,35 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
-import { api, AccountState } from '@/services/api'
+import { api } from '@/services/api'
+import { useWallet } from '@/hooks/useWallet'
 import { ethers } from 'ethers'
 import { parseAmount, signTransactionCorrect, formatAmount } from '@/utils/transactions'
-import { ASSETS, AVAILABLE_CHAINS, DEFAULTS, getDepositContract, getChainName, getChainHex } from '@/constants/config'
-
-function parseErrorMessage(err: any): string {
-  const msg = err?.message || err?.reason || 'Unknown error'
-  if (msg.includes('INSUFFICIENT_FUNDS') || msg.includes('insufficient funds')) {
-    return 'Insufficient funds in your wallet. Please add Sepolia ETH and try again.'
-  }
-  if (msg.includes('user rejected') || msg.includes('ACTION_REJECTED') || err?.code === 4001) {
-    return 'Transaction rejected by user.'
-  }
-  if (msg.includes('nonce')) {
-    return 'Transaction nonce error. Please try again.'
-  }
-  // Strip long hex/technical data
-  const clean = msg.replace(/\(transaction=\{.*?\}\)/s, '').replace(/\(action=.*?\)/s, '').trim()
-  return clean.length > 200 ? clean.slice(0, 200) + '...' : clean
-}
+import { parseWalletError } from '@/utils/walletErrors'
+import { ASSETS, AVAILABLE_CHAINS, DEFAULTS, getDepositContract, getChainName } from '@/constants/config'
 
 export default function CreateDeal() {
   const router = useRouter()
-  const [address, setAddress] = useState<string | null>(null)
+  const { address, accountState, loading: walletLoading, walletInstalled, refreshAccountState, switchToChain } = useWallet()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [accountState, setAccountState] = useState<AccountState | null>(null)
 
   const [dealId] = useState<string>(() => String(Date.now()))
   const [visibility, setVisibility] = useState<'public' | 'private'>('public')
@@ -41,34 +26,12 @@ export default function CreateDeal() {
   const [amountBase, setAmountBase] = useState<string>('')
   const [priceQuotePerBase, setPriceQuotePerBase] = useState<string>(DEFAULTS.PRICE_RATE)
 
-  const loadAccountState = useCallback(async (addr: string) => {
-    try {
-      const state = await api.getAccountState(addr)
-      setAccountState(state)
-    } catch (err) {
-      console.error('Error loading account state:', err)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      window.ethereum
-        .request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
-          if (accounts.length > 0) {
-            setAddress(accounts[0])
-            loadAccountState(accounts[0])
-          }
-        })
-        .catch(console.error)
-    }
-  }, [loadAccountState])
-
+  // Refresh account state when base chain changes
   useEffect(() => {
     if (address && chainIdBase) {
-      loadAccountState(address)
+      refreshAccountState()
     }
-  }, [chainIdBase, address, loadAccountState])
+  }, [chainIdBase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const getCurrentBalance = (): bigint => {
     if (!accountState) return BigInt(0)
@@ -86,72 +49,41 @@ export default function CreateDeal() {
     return current >= required
   }
 
-  const switchToChain = async (targetChainId: number) => {
-    if (!window.ethereum) return
-    const hexChainId = getChainHex(targetChainId)
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: hexChainId }],
-      })
-    } catch (switchError: any) {
-      // Chain not added — try to add it
-      if (switchError.code === 4902) {
-        const chainInfo: Record<number, any> = {
-          11155111: {
-            chainId: hexChainId,
-            chainName: 'Ethereum Sepolia',
-            rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'],
-            nativeCurrency: { name: 'SepoliaETH', symbol: 'ETH', decimals: 18 },
-            blockExplorerUrls: ['https://sepolia.etherscan.io'],
-          },
-          84532: {
-            chainId: hexChainId,
-            chainName: 'Base Sepolia',
-            rpcUrls: ['https://sepolia.base.org'],
-            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-            blockExplorerUrls: ['https://sepolia.basescan.org'],
-          },
-        }
-        if (chainInfo[targetChainId]) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [chainInfo[targetChainId]],
-          })
-        }
-      } else {
-        throw switchError
-      }
+  const validate = (): string | null => {
+    if (!address) return 'Please connect your wallet to create a deal.'
+    if (!accountState) return 'Account is still loading. Please wait a moment.'
+    if (!amountBase || parseAmount(amountBase) === BigInt(0)) return 'Please enter a valid amount.'
+    if (!priceQuotePerBase) return 'Please enter an exchange rate.'
+    if (visibility === 'private' && (!taker || !ethers.isAddress(taker))) {
+      return 'Please enter a valid taker address for private deals.'
     }
+    return null
   }
 
   const handleDepositAndCreateDeal = async () => {
-    if (!address || !window.ethereum || !accountState) {
-      alert('Please connect your wallet')
-      return
-    }
-    if (!amountBase || !priceQuotePerBase) {
-      alert('Please fill in all required fields')
-      return
-    }
-    if (visibility === 'private' && (!taker || !ethers.isAddress(taker))) {
-      alert('Please specify a valid taker address for private deals')
-      return
-    }
+    if (!address || !window.ethereum || !accountState) return
 
     setLoading(true)
     setError(null)
 
     try {
       const chainIdBaseNum = parseInt(chainIdBase)
-      await switchToChain(chainIdBaseNum)
+
+      // Switch to the correct chain
+      const switched = await switchToChain(chainIdBaseNum)
+      if (!switched) {
+        setError(`Please switch to ${getChainName(chainIdBaseNum)} in your wallet to proceed.`)
+        setLoading(false)
+        return
+      }
 
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       const depositContract = getDepositContract(chainIdBaseNum)
 
       if (!depositContract || !ethers.isAddress(depositContract)) {
-        alert(`Deposit contract not configured for chain ${chainIdBaseNum}`)
+        setError(`Deposit contract not configured for ${getChainName(chainIdBaseNum)}.`)
+        setLoading(false)
         return
       }
 
@@ -192,7 +124,7 @@ export default function CreateDeal() {
       await api.submitTransaction(depositRequest)
 
       await new Promise(resolve => setTimeout(resolve, 2000))
-      await loadAccountState(address)
+      await refreshAccountState()
       const updatedState = await api.getAccountState(address)
       nonce = updatedState.nonce
 
@@ -233,30 +165,19 @@ export default function CreateDeal() {
       }
 
       await api.submitTransaction(dealRequest)
-      await loadAccountState(address)
+      await refreshAccountState()
       router.push(`/deals/${dealId}`)
     } catch (err: any) {
-      setError(parseErrorMessage(err))
+      setError(parseWalletError(err))
     } finally {
       setLoading(false)
     }
   }
 
   const handleCreateDeal = async () => {
-    if (!address || !window.ethereum) {
-      alert('Please connect your wallet')
-      return
-    }
-    if (!accountState) {
-      alert('Please wait for account to load')
-      return
-    }
-    if (!amountBase || !priceQuotePerBase) {
-      alert('Please fill in all required fields')
-      return
-    }
-    if (visibility === 'private' && (!taker || !ethers.isAddress(taker))) {
-      alert('Please specify a valid taker address for private deals')
+    const validationError = validate()
+    if (validationError) {
+      setError(validationError)
       return
     }
 
@@ -265,11 +186,12 @@ export default function CreateDeal() {
       const required = formatAmount(parseAmount(amountBase))
       const current = formatAmount(getCurrentBalance())
       const chainName = getChainName(parseInt(chainIdBase))
-      if (!confirm(
-        `Insufficient balance!\n\nRequired: ${required} ${ASSETS.ETH.symbol}\nCurrent: ${current} ${ASSETS.ETH.symbol} on ${chainName}\n\nWe will deposit ${required} ${ASSETS.ETH.symbol} and create the deal in one transaction. Continue?`
-      )) {
-        return
-      }
+      // Show deposit info in the error area instead of confirm()
+      setError(
+        `Insufficient balance: ${current} ETH available on ${chainName}, but ${required} ETH required. ` +
+        `A deposit will be made automatically before creating the deal.`
+      )
+      // Still proceed with deposit + create
       await handleDepositAndCreateDeal()
       return
     }
@@ -278,7 +200,7 @@ export default function CreateDeal() {
     setError(null)
 
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum)
+      const provider = new ethers.BrowserProvider(window.ethereum!)
       const signer = await provider.getSigner()
       const dealIdNum = parseInt(dealId)
       const chainIdBaseNum = parseInt(chainIdBase)
@@ -298,8 +220,8 @@ export default function CreateDeal() {
         priceQuotePerBase: priceBigInt.toString(),
       }
 
-      const nonce = accountState.nonce
-      const signature = await signTransactionCorrect(signer, address, nonce, 'CreateDeal', payload)
+      const nonce = accountState!.nonce
+      const signature = await signTransactionCorrect(signer, address!, nonce, 'CreateDeal', payload)
 
       const submitRequest = {
         kind: 'CreateDeal',
@@ -320,10 +242,10 @@ export default function CreateDeal() {
       }
 
       await api.submitTransaction(submitRequest)
-      await loadAccountState(address)
+      await refreshAccountState()
       router.push(`/deals/${dealId}`)
     } catch (err: any) {
-      setError(parseErrorMessage(err))
+      setError(parseWalletError(err))
     } finally {
       setLoading(false)
     }
@@ -337,15 +259,48 @@ export default function CreateDeal() {
           <p className="text-sm text-dim mt-1">Create a cross-chain settlement deal</p>
         </div>
 
-        {!address ? (
-          <div className="bg-surface border border-edge rounded-2xl p-8 text-center">
-            <p className="text-dim">Connect your wallet to create a deal</p>
+        {!walletInstalled ? (
+          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-full bg-warning/10 flex items-center justify-center">
+              <span className="text-warning text-xl">!</span>
+            </div>
+            <p className="text-bright font-heading font-semibold">No wallet detected</p>
+            <p className="text-dim text-sm">
+              Install MetaMask or another Web3 wallet to use Axync.
+            </p>
+            <a
+              href="https://metamask.io/download/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-outline inline-block text-xs mt-2"
+            >
+              Install MetaMask
+            </a>
+          </div>
+        ) : !address ? (
+          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-full bg-elevated flex items-center justify-center">
+              <span className="text-dim text-xl">&#x1F50C;</span>
+            </div>
+            <p className="text-bright font-heading font-semibold">Wallet not connected</p>
+            <p className="text-dim text-sm">
+              Click &quot;Connect Wallet&quot; in the top right to create a deal.
+            </p>
           </div>
         ) : (
           <div className="bg-surface border border-edge rounded-2xl p-6">
             {error && (
-              <div className="mb-6 p-4 bg-danger/5 border border-danger/20 rounded-xl">
-                <p className="text-danger text-sm">{error}</p>
+              <div className="mb-6 p-4 bg-danger/5 border border-danger/20 rounded-xl flex items-start gap-3">
+                <span className="text-danger text-sm mt-0.5 shrink-0">&#x26A0;</span>
+                <div className="flex-1">
+                  <p className="text-danger text-sm">{error}</p>
+                  <button
+                    onClick={() => setError(null)}
+                    className="text-danger/60 text-xs mt-1 hover:text-danger transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
             )}
 
@@ -375,6 +330,9 @@ export default function CreateDeal() {
                     onChange={(e) => setTaker(e.target.value)}
                     placeholder="0x..."
                   />
+                  {taker && !ethers.isAddress(taker) && (
+                    <p className="text-warning text-xs font-mono mt-1.5">Invalid address format</p>
+                  )}
                 </div>
               )}
 
@@ -417,13 +375,19 @@ export default function CreateDeal() {
                   <div className="mt-2">
                     {isBalanceSufficient() ? (
                       <span className="text-success text-xs font-mono">
-                        Balance: {formatAmount(getCurrentBalance())} available
+                        Balance: {formatAmount(getCurrentBalance())} available on {getChainName(parseInt(chainIdBase))}
                       </span>
                     ) : (
                       <span className="text-warning text-xs font-mono">
-                        Insufficient: {formatAmount(getCurrentBalance())} available. Deposit will be made automatically.
+                        {formatAmount(getCurrentBalance())} available on {getChainName(parseInt(chainIdBase))}. Deposit will be made automatically.
                       </span>
                     )}
+                  </div>
+                )}
+                {walletLoading && !accountState && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="w-3 h-3 border border-dim border-t-transparent rounded-full animate-spin" />
+                    <span className="text-dim text-xs font-mono">Loading balance...</span>
                   </div>
                 )}
               </div>
@@ -439,6 +403,11 @@ export default function CreateDeal() {
                   onChange={(e) => setPriceQuotePerBase(e.target.value)}
                   placeholder="1"
                 />
+                {amountBase && priceQuotePerBase && (
+                  <p className="text-dim text-xs font-mono mt-1.5">
+                    Taker pays: {(parseFloat(amountBase || '0') * parseFloat(priceQuotePerBase || '1')).toFixed(6)} ETH on {getChainName(parseInt(chainIdQuote))}
+                  </p>
+                )}
               </div>
 
               {/* Actions */}
@@ -454,7 +423,14 @@ export default function CreateDeal() {
                   disabled={loading}
                   className="btn-silver flex-1"
                 >
-                  {loading ? 'Creating...' : 'Create Deal'}
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-base border-t-transparent rounded-full animate-spin" />
+                      Creating...
+                    </span>
+                  ) : (
+                    'Create Deal'
+                  )}
                 </button>
               </div>
             </div>

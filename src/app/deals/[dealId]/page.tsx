@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Layout from '@/components/Layout'
 import { api, Deal } from '@/services/api'
+import { useWallet } from '@/hooks/useWallet'
 import {
   formatAddress,
   formatAmount,
   signTransactionCorrect,
 } from '@/utils/transactions'
+import { parseWalletError } from '@/utils/walletErrors'
 import { ethers } from 'ethers'
 import { getChainName } from '@/constants/config'
 
@@ -33,18 +35,10 @@ export default function DealDetails() {
   const [deal, setDeal] = useState<Deal | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [address, setAddress] = useState<string | null>(null)
-  const [accountState, setAccountState] = useState<any>(null)
   const [processing, setProcessing] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
 
-  const loadAccountState = async (addr: string) => {
-    try {
-      const state = await api.getAccountState(addr)
-      setAccountState(state)
-    } catch (err) {
-      console.error('Error loading account state:', err)
-    }
-  }
+  const { address, accountState, walletInstalled, refreshAccountState } = useWallet()
 
   const loadDeal = useCallback(async () => {
     if (!dealId) return
@@ -54,34 +48,28 @@ export default function DealDetails() {
       const dealData = await api.getDealDetails(parseInt(dealId))
       setDeal(dealData)
     } catch (err: any) {
-      setError(err.message || 'Failed to load deal')
+      setError(parseWalletError(err))
     } finally {
       setLoading(false)
     }
   }, [dealId])
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      window.ethereum
-        .request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
-          if (accounts.length > 0) {
-            setAddress(accounts[0])
-            loadAccountState(accounts[0])
-          }
-        })
-        .catch(console.error)
-    }
     if (dealId) loadDeal()
   }, [dealId, loadDeal])
 
   const handleAcceptDeal = async () => {
-    if (!address || !window.ethereum || !accountState || !deal) {
-      alert('Please connect your wallet and wait for account to load')
+    if (!address || !window.ethereum) {
+      setError('Please connect your wallet to accept this deal.')
       return
     }
+    if (!accountState) {
+      setError('Account is still loading. Please wait a moment.')
+      return
+    }
+    if (!deal) return
     if (!deal.amount_remaining || !deal.price_quote_per_base) {
-      setError('Deal data is incomplete')
+      setError('Deal data is incomplete. Please refresh the page.')
       return
     }
 
@@ -95,8 +83,8 @@ export default function DealDetails() {
     if (currentBalance < amountQuote) {
       const chainName = getChainName(deal.chain_id_quote)
       setError(
-        `Insufficient balance! You need ${formatAmount(amountQuote)} on ${chainName} to accept this deal. ` +
-        `You currently have ${formatAmount(currentBalance)}. Please make a deposit first.`
+        `Insufficient balance. You need ${formatAmount(amountQuote)} ETH on ${chainName} to accept this deal. ` +
+        `You currently have ${formatAmount(currentBalance)} ETH. Please deposit first.`
       )
       return
     }
@@ -122,9 +110,9 @@ export default function DealDetails() {
 
       await api.submitTransaction(submitRequest)
       await loadDeal()
-      await loadAccountState(address)
+      await refreshAccountState()
     } catch (err: any) {
-      setError(err.message || 'Failed to accept deal')
+      setError(parseWalletError(err))
     } finally {
       setProcessing(false)
     }
@@ -132,17 +120,22 @@ export default function DealDetails() {
 
   const handleCancelDeal = async () => {
     if (!address || !window.ethereum || !accountState || !deal) {
-      alert('Please connect your wallet and wait for account to load')
+      setError('Please connect your wallet to cancel this deal.')
       return
     }
     if (deal.maker.toLowerCase() !== address.toLowerCase()) {
-      alert('Only the maker can cancel this deal')
+      setError('Only the deal maker can cancel this deal.')
       return
     }
-    if (!confirm('Are you sure you want to cancel this deal?')) return
+
+    if (!confirmCancel) {
+      setConfirmCancel(true)
+      return
+    }
 
     setProcessing(true)
     setError(null)
+    setConfirmCancel(false)
 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum)
@@ -161,9 +154,9 @@ export default function DealDetails() {
 
       await api.submitTransaction(submitRequest)
       await loadDeal()
-      await loadAccountState(address)
+      await refreshAccountState()
     } catch (err: any) {
-      setError(err.message || 'Failed to cancel deal')
+      setError(parseWalletError(err))
     } finally {
       setProcessing(false)
     }
@@ -173,6 +166,7 @@ export default function DealDetails() {
     return (
       <Layout>
         <div className="max-w-3xl mx-auto py-12 text-center">
+          <div className="w-8 h-8 mx-auto border-2 border-silver-lo border-t-transparent rounded-full animate-spin mb-4" />
           <p className="text-dim">Loading deal...</p>
         </div>
       </Layout>
@@ -183,8 +177,17 @@ export default function DealDetails() {
     return (
       <Layout>
         <div className="max-w-3xl mx-auto">
-          <div className="bg-danger/5 border border-danger/20 rounded-2xl p-6">
+          <button onClick={() => router.back()} className="text-dim hover:text-silver-lo text-sm mb-4 transition-colors">
+            &larr; Back to Deals
+          </button>
+          <div className="bg-danger/5 border border-danger/20 rounded-2xl p-6 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-full bg-danger/10 flex items-center justify-center">
+              <span className="text-danger text-xl">&#x26A0;</span>
+            </div>
             <p className="text-danger text-sm">{error || 'Deal not found'}</p>
+            <button onClick={loadDeal} className="btn-outline text-xs">
+              Try Again
+            </button>
           </div>
         </div>
       </Layout>
@@ -266,31 +269,82 @@ export default function DealDetails() {
 
           {/* Error */}
           {error && (
-            <div className="p-4 bg-danger/5 border border-danger/20 rounded-xl">
-              <p className="text-danger text-sm">{error}</p>
+            <div className="p-4 bg-danger/5 border border-danger/20 rounded-xl flex items-start gap-3">
+              <span className="text-danger text-sm mt-0.5">&#x26A0;</span>
+              <div>
+                <p className="text-danger text-sm">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="text-danger/60 text-xs mt-1 hover:text-danger transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Cancel Confirmation */}
+          {confirmCancel && (
+            <div className="p-4 bg-warning/5 border border-warning/20 rounded-xl">
+              <p className="text-warning text-sm mb-3">Are you sure you want to cancel this deal? Your deposited funds will be returned to your balance.</p>
+              <div className="flex gap-2">
+                <button onClick={handleCancelDeal} className="btn-danger text-xs">
+                  Yes, Cancel Deal
+                </button>
+                <button onClick={() => setConfirmCancel(false)} className="btn-outline text-xs">
+                  Keep Deal
+                </button>
+              </div>
             </div>
           )}
 
           {/* Actions */}
           <div className="pt-4 border-t border-edge">
-            {!address ? (
+            {!walletInstalled ? (
+              <div className="p-4 bg-elevated border border-edge rounded-xl text-center space-y-2">
+                <p className="text-dim text-sm">No wallet detected.</p>
+                <a
+                  href="https://metamask.io/download/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-info text-xs hover:underline"
+                >
+                  Install MetaMask to interact with deals
+                </a>
+              </div>
+            ) : !address ? (
               <div className="p-4 bg-elevated border border-edge rounded-xl">
                 <p className="text-dim text-sm">Connect your wallet to interact with this deal.</p>
               </div>
             ) : !accountState ? (
-              <div className="p-4 bg-elevated border border-edge rounded-xl">
+              <div className="p-4 bg-elevated border border-edge rounded-xl flex items-center gap-3">
+                <div className="w-4 h-4 border-2 border-dim border-t-transparent rounded-full animate-spin" />
                 <p className="text-dim text-sm">Loading account...</p>
               </div>
             ) : (
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center">
                 {canAccept && (
                   <button onClick={handleAcceptDeal} disabled={processing} className="btn-silver">
-                    {processing ? 'Processing...' : 'Accept Deal'}
+                    {processing ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-base border-t-transparent rounded-full animate-spin" />
+                        Processing...
+                      </span>
+                    ) : (
+                      'Accept Deal'
+                    )}
                   </button>
                 )}
-                {isMaker && deal.status === 'Pending' && (
+                {isMaker && deal.status === 'Pending' && !confirmCancel && (
                   <button onClick={handleCancelDeal} disabled={processing} className="btn-danger">
-                    {processing ? 'Processing...' : 'Cancel Deal'}
+                    {processing ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-danger border-t-transparent rounded-full animate-spin" />
+                        Processing...
+                      </span>
+                    ) : (
+                      'Cancel Deal'
+                    )}
                   </button>
                 )}
                 {isMaker && deal.status === 'Pending' && (
