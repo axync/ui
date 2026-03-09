@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Layout from '@/components/Layout'
-import { api, AccountState } from '@/services/api'
+import { useWallet } from '@/hooks/useWallet'
 import { ethers } from 'ethers'
 import {
   formatAddress,
@@ -10,6 +10,7 @@ import {
   parseAmount,
   signTransactionCorrect,
 } from '@/utils/transactions'
+import { parseWalletError } from '@/utils/walletErrors'
 import {
   ASSETS,
   AVAILABLE_CHAINS,
@@ -23,8 +24,7 @@ import {
 type WithdrawalStep = 'form' | 'sequencer_pending' | 'ready_to_claim' | 'claiming' | 'done'
 
 export default function Withdrawals() {
-  const [address, setAddress] = useState<string | null>(null)
-  const [accountState, setAccountState] = useState<AccountState | null>(null)
+  const { address, accountState, walletInstalled, refreshAccountState, switchToChain } = useWallet()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -34,48 +34,6 @@ export default function Withdrawals() {
   const [chainId, setChainId] = useState<string>(String(DEFAULTS.CHAIN_BASE))
   const [step, setStep] = useState<WithdrawalStep>('form')
   const [withdrawalTxHash, setWithdrawalTxHash] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      window.ethereum
-        .request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
-          if (accounts.length > 0) {
-            setAddress(accounts[0])
-            loadAccountState(accounts[0])
-          }
-        })
-        .catch(console.error)
-
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setAddress(accounts[0])
-          loadAccountState(accounts[0])
-        } else {
-          setAddress(null)
-          setAccountState(null)
-        }
-      }
-
-      window.ethereum.on('accountsChanged', handleAccountsChanged)
-      return () => {
-        window.ethereum?.removeListener('accountsChanged', handleAccountsChanged)
-      }
-    }
-  }, [])
-
-  const loadAccountState = async (addr: string) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const state = await api.getAccountState(addr)
-      setAccountState(state)
-    } catch (err: any) {
-      setError(err.message || 'Failed to load account state')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const getBalance = (chainIdNum: number): bigint => {
     if (!accountState) return BigInt(0)
@@ -88,21 +46,21 @@ export default function Withdrawals() {
   // Step 1: Submit withdrawal to sequencer
   const handleSubmitWithdrawal = async () => {
     if (!address || !window.ethereum) {
-      alert('Please connect your wallet')
+      setError('Please connect your wallet to continue.')
       return
     }
     if (!accountState) {
-      alert('Please wait for account to load')
+      setError('Account is still loading. Please wait a moment.')
       return
     }
     if (!amount || parseFloat(amount) <= 0) {
-      setError('Please enter a valid amount')
+      setError('Please enter a valid amount.')
       return
     }
 
     const recipient = to || address
     if (!ethers.isAddress(recipient)) {
-      setError('Please enter a valid recipient address')
+      setError('Please enter a valid recipient address.')
       return
     }
 
@@ -146,20 +104,20 @@ export default function Withdrawals() {
         signature: signature,
       }
 
-      const result = await api.submitTransaction(submitRequest)
+      const result = await (await import('@/services/api')).api.submitTransaction(submitRequest)
       setWithdrawalTxHash(result.tx_hash)
       setStep('sequencer_pending')
-      setSuccess('Withdrawal submitted to sequencer! Waiting for block inclusion...')
+      setSuccess('Withdrawal submitted! Waiting for block inclusion...')
 
-      // Wait a bit for block inclusion then move to claim step
+      // Wait for block inclusion then move to claim step
       setTimeout(() => {
         setStep('ready_to_claim')
-        setSuccess('Withdrawal included in block. Ready to claim on-chain!')
-      }, 6000) // Wait for ~2 blocks
+        setSuccess('Ready to claim on-chain!')
+      }, 6000)
 
-      await loadAccountState(address)
+      await refreshAccountState()
     } catch (err: any) {
-      setError(err.message || 'Failed to process withdrawal')
+      setError(parseWalletError(err))
     } finally {
       setLoading(false)
     }
@@ -167,7 +125,10 @@ export default function Withdrawals() {
 
   // Step 2: Claim on-chain via WithdrawalContract
   const handleClaimOnChain = async () => {
-    if (!address || !window.ethereum) return
+    if (!address || !window.ethereum) {
+      setError('Please connect your wallet to continue.')
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -178,30 +139,22 @@ export default function Withdrawals() {
       const withdrawalContractAddr = getWithdrawalContract(chainIdNum)
 
       if (!withdrawalContractAddr) {
-        setError('No WithdrawalContract found for this chain')
+        setError(`No withdrawal contract found for ${getChainName(chainIdNum)}.`)
+        setStep('ready_to_claim')
+        setLoading(false)
+        return
+      }
+
+      // Switch to the correct network
+      const switched = await switchToChain(chainIdNum)
+      if (!switched) {
+        setError(`Please switch to ${getChainName(chainIdNum)} in your wallet to claim.`)
         setStep('ready_to_claim')
         setLoading(false)
         return
       }
 
       const provider = new ethers.BrowserProvider(window.ethereum)
-
-      // Switch to the correct network
-      const currentChainId = await provider.getNetwork().then(n => Number(n.chainId))
-      if (currentChainId !== chainIdNum) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: getChainHex(chainIdNum) }],
-          })
-        } catch (switchError: any) {
-          setError(`Please switch to ${getChainName(chainIdNum)} in your wallet`)
-          setStep('ready_to_claim')
-          setLoading(false)
-          return
-        }
-      }
-
       const signer = await provider.getSigner()
 
       // Connect to WithdrawalContract
@@ -213,7 +166,6 @@ export default function Withdrawals() {
 
       // Read current withdrawals root from contract
       const withdrawalsRoot = await withdrawalContract.withdrawalsRoot()
-      console.log('WithdrawalsRoot:', withdrawalsRoot)
 
       // Build WithdrawalData struct
       const amountBigInt = parseAmount(amount)
@@ -236,17 +188,7 @@ export default function Withdrawals() {
       // Placeholder proofs (accepted by testnet contracts)
       const merkleProof = ethers.hexlify(ethers.randomBytes(64))
       const zkProof = ethers.hexlify(ethers.randomBytes(32))
-
-      // Use the contract's current withdrawals root, or zero if empty
       const rootToUse = withdrawalsRoot !== ethers.ZeroHash ? withdrawalsRoot : ethers.ZeroHash
-
-      console.log('Calling withdraw with:', {
-        withdrawalData,
-        merkleProof: merkleProof.slice(0, 20) + '...',
-        nullifier,
-        zkProof: zkProof.slice(0, 20) + '...',
-        rootToUse,
-      })
 
       const tx = await withdrawalContract.withdraw(
         withdrawalData,
@@ -262,11 +204,11 @@ export default function Withdrawals() {
 
       setStep('done')
       setSuccess(
-        `✅ Withdrawal claimed on-chain!\nTx: ${receipt.hash}\n${formatAmount(amountBigInt)} ETH sent to ${formatAddress(recipient)} on ${getChainName(chainIdNum)}`
+        `Withdrawal claimed on-chain!\nTx: ${receipt.hash}\n${formatAmount(amountBigInt)} ETH sent to ${formatAddress(recipient)} on ${getChainName(chainIdNum)}`
       )
     } catch (err: any) {
       console.error('Claim error:', err)
-      setError(err.reason || err.message || 'Failed to claim on-chain')
+      setError(parseWalletError(err))
       setStep('ready_to_claim')
     } finally {
       setLoading(false)
@@ -280,7 +222,7 @@ export default function Withdrawals() {
     setError(null)
     setSuccess(null)
     setWithdrawalTxHash(null)
-    if (address) loadAccountState(address)
+    refreshAccountState()
   }
 
   return (
@@ -291,9 +233,33 @@ export default function Withdrawals() {
           <p className="text-sm text-dim mt-1">Withdraw settled assets back to their native chain</p>
         </div>
 
-        {!address ? (
-          <div className="bg-surface border border-edge rounded-2xl p-8 text-center">
-            <p className="text-dim">Connect your wallet to make withdrawals</p>
+        {!walletInstalled ? (
+          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-full bg-warning/10 flex items-center justify-center">
+              <span className="text-warning text-xl">!</span>
+            </div>
+            <p className="text-bright font-heading font-semibold">No wallet detected</p>
+            <p className="text-dim text-sm">
+              Install MetaMask or another Web3 wallet to use Axync.
+            </p>
+            <a
+              href="https://metamask.io/download/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-outline inline-block text-xs mt-2"
+            >
+              Install MetaMask
+            </a>
+          </div>
+        ) : !address ? (
+          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-full bg-elevated flex items-center justify-center">
+              <span className="text-dim text-xl">&#x1F50C;</span>
+            </div>
+            <p className="text-bright font-heading font-semibold">Wallet not connected</p>
+            <p className="text-dim text-sm">
+              Click &quot;Connect Wallet&quot; in the top right to make withdrawals.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -352,12 +318,14 @@ export default function Withdrawals() {
 
             {/* Status Messages */}
             {error && (
-              <div className="p-4 bg-danger/5 border border-danger/20 rounded-xl">
+              <div className="p-4 bg-danger/5 border border-danger/20 rounded-xl flex items-start gap-3">
+                <span className="text-danger text-sm mt-0.5">&#x26A0;</span>
                 <p className="text-danger text-sm">{error}</p>
               </div>
             )}
             {success && (
-              <div className="p-4 bg-success/5 border border-success/20 rounded-xl">
+              <div className="p-4 bg-success/5 border border-success/20 rounded-xl flex items-start gap-3">
+                <span className="text-success text-sm mt-0.5">&#x2713;</span>
                 <p className="text-success text-sm whitespace-pre-line">{success}</p>
               </div>
             )}
@@ -415,7 +383,14 @@ export default function Withdrawals() {
                     disabled={loading || !amount}
                     className="btn-silver w-full"
                   >
-                    {loading ? 'Signing...' : 'Submit to Sequencer'}
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 border-2 border-base border-t-transparent rounded-full animate-spin" />
+                        Signing...
+                      </span>
+                    ) : (
+                      'Submit to Sequencer'
+                    )}
                   </button>
                 </div>
               </div>
@@ -424,10 +399,8 @@ export default function Withdrawals() {
             {/* Step 2: Waiting for block */}
             {step === 'sequencer_pending' && (
               <div className="bg-surface border border-edge rounded-2xl p-8 text-center">
-                <div className="animate-pulse mb-4">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-warning/20 flex items-center justify-center">
-                    <span className="text-warning text-xl">⏳</span>
-                  </div>
+                <div className="mb-4">
+                  <div className="w-12 h-12 mx-auto border-2 border-warning border-t-transparent rounded-full animate-spin" />
                 </div>
                 <p className="font-heading text-lg text-bright">Waiting for block inclusion...</p>
                 <p className="text-dim text-sm mt-2">The sequencer will include your withdrawal in the next block</p>
@@ -460,8 +433,7 @@ export default function Withdrawals() {
 
                 <div className="p-4 bg-info/5 border border-info/20 rounded-xl mb-5">
                   <p className="text-info text-xs leading-relaxed">
-                    This will call the WithdrawalContract on {getChainName(parseInt(chainId))} to release your ETH.
-                    Make sure your wallet is connected to the correct network.
+                    This will switch your wallet to {getChainName(parseInt(chainId))} and call the withdrawal contract to release your ETH.
                   </p>
                 </div>
 
@@ -470,7 +442,14 @@ export default function Withdrawals() {
                   disabled={loading}
                   className="btn-silver w-full"
                 >
-                  {loading ? 'Claiming...' : `Claim ${amount} ETH on ${getChainName(parseInt(chainId))}`}
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-base border-t-transparent rounded-full animate-spin" />
+                      Claiming...
+                    </span>
+                  ) : (
+                    `Claim ${amount} ETH on ${getChainName(parseInt(chainId))}`
+                  )}
                 </button>
               </div>
             )}
@@ -479,7 +458,7 @@ export default function Withdrawals() {
             {step === 'done' && (
               <div className="bg-surface border border-edge rounded-2xl p-6 text-center">
                 <div className="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center mb-4">
-                  <span className="text-success text-3xl">✓</span>
+                  <span className="text-success text-3xl">&#x2713;</span>
                 </div>
                 <p className="font-heading text-lg text-bright mb-2">Withdrawal Complete!</p>
                 <p className="text-dim text-sm mb-6">

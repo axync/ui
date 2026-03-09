@@ -1,59 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Layout from '@/components/Layout'
-import { api, AccountState } from '@/services/api'
+import { useWallet } from '@/hooks/useWallet'
 import { formatAmount } from '@/utils/transactions'
 import { ASSETS, getChainName } from '@/constants/config'
 
 export default function Account() {
-  const [address, setAddress] = useState<string | null>(null)
-  const [accountState, setAccountState] = useState<AccountState | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      window.ethereum
-        .request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
-          if (accounts.length > 0) {
-            setAddress(accounts[0])
-            loadAccountState(accounts[0])
-          }
-        })
-        .catch(console.error)
-
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setAddress(accounts[0])
-          loadAccountState(accounts[0])
-        } else {
-          setAddress(null)
-          setAccountState(null)
-        }
-      }
-
-      window.ethereum.on('accountsChanged', handleAccountsChanged)
-      return () => {
-        window.ethereum?.removeListener('accountsChanged', handleAccountsChanged)
-      }
-    }
-  }, [])
-
-  const loadAccountState = async (addr: string) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const state = await api.getAccountState(addr)
-      setAccountState(state)
-    } catch (err: any) {
-      setError(err.message || 'Failed to load account state')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { address, accountState, loading, walletInstalled } = useWallet()
 
   const formatAddr = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`
 
@@ -70,17 +24,38 @@ export default function Account() {
           <p className="text-sm text-dim mt-1">View your balances and account details</p>
         </div>
 
-        {!address ? (
-          <div className="bg-surface border border-edge rounded-2xl p-8 text-center">
-            <p className="text-dim">Connect your wallet to view account information</p>
+        {!walletInstalled ? (
+          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-full bg-warning/10 flex items-center justify-center">
+              <span className="text-warning text-xl">!</span>
+            </div>
+            <p className="text-bright font-heading font-semibold">No wallet detected</p>
+            <p className="text-dim text-sm">
+              Install MetaMask or another Web3 wallet to use Axync.
+            </p>
+            <a
+              href="https://metamask.io/download/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-outline inline-block text-xs mt-2"
+            >
+              Install MetaMask
+            </a>
+          </div>
+        ) : !address ? (
+          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-full bg-elevated flex items-center justify-center">
+              <span className="text-dim text-xl">&#x1F50C;</span>
+            </div>
+            <p className="text-bright font-heading font-semibold">Wallet not connected</p>
+            <p className="text-dim text-sm">
+              Click &quot;Connect Wallet&quot; in the top right to get started.
+            </p>
           </div>
         ) : loading && !accountState ? (
           <div className="bg-surface border border-edge rounded-2xl p-12 text-center">
+            <div className="w-8 h-8 mx-auto border-2 border-silver-lo border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-dim">Loading account...</p>
-          </div>
-        ) : error && !accountState ? (
-          <div className="bg-danger/5 border border-danger/20 rounded-2xl p-6">
-            <p className="text-danger text-sm">{error}</p>
           </div>
         ) : (
           <div className="space-y-4">

@@ -5,14 +5,21 @@ import { useState, useEffect } from 'react'
 export default function WalletConnect() {
   const [address, setAddress] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [walletInstalled, setWalletInstalled] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.ethereum) return
+    if (typeof window === 'undefined') return
+
+    // Check if wallet is installed
+    const provider = window.ethereum
+    const hasWallet = !!provider
+    setWalletInstalled(hasWallet)
+    if (!hasWallet || !provider) return
 
     let handleAccountsChanged: ((accounts: string[]) => void) | null = null
 
     try {
-      window.ethereum
+      provider
         .request({ method: 'eth_accounts' })
         .then((accounts: string[]) => {
           if (accounts.length > 0) {
@@ -29,7 +36,7 @@ export default function WalletConnect() {
         }
       }
 
-      window.ethereum.on('accountsChanged', handleAccountsChanged)
+      provider.on('accountsChanged', handleAccountsChanged)
     } catch {
       // Some wallets don't support .on() — ignore
     }
@@ -37,7 +44,7 @@ export default function WalletConnect() {
     return () => {
       try {
         if (handleAccountsChanged) {
-          window.ethereum?.removeListener('accountsChanged', handleAccountsChanged)
+          provider.removeListener('accountsChanged', handleAccountsChanged)
         }
       } catch {
         // Ignore cleanup errors
@@ -46,10 +53,7 @@ export default function WalletConnect() {
   }, [])
 
   const connectWallet = async () => {
-    if (typeof window.ethereum === 'undefined') {
-      alert('Please install MetaMask!')
-      return
-    }
+    if (!window.ethereum) return
 
     setIsConnecting(true)
     try {
@@ -76,10 +80,9 @@ export default function WalletConnect() {
         window.dispatchEvent(new Event('accountsChanged'))
       }
     } catch (error: any) {
-      if (error.code === 4001) {
-        alert('Connection rejected. Please approve the connection request in MetaMask.')
-      } else {
-        alert('Failed to connect wallet: ' + (error.message || 'Unknown error'))
+      // Only show errors that aren't user rejections — silently handle
+      if (error.code !== 4001) {
+        console.error('Wallet connection error:', error)
       }
     } finally {
       setIsConnecting(false)
@@ -110,6 +113,7 @@ export default function WalletConnect() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
   }
 
+  // Wallet is connected — show address
   if (address) {
     return (
       <div className="flex items-center gap-3">
@@ -126,13 +130,35 @@ export default function WalletConnect() {
     )
   }
 
+  // No wallet extension installed
+  if (!walletInstalled) {
+    return (
+      <a
+        href="https://metamask.io/download/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn-outline text-xs"
+      >
+        Install Wallet
+      </a>
+    )
+  }
+
+  // Wallet installed but not connected
   return (
     <button
       onClick={connectWallet}
       disabled={isConnecting}
       className="btn-outline text-xs"
     >
-      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+      {isConnecting ? (
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 border border-dim border-t-transparent rounded-full animate-spin" />
+          Connecting...
+        </span>
+      ) : (
+        'Connect Wallet'
+      )}
     </button>
   )
 }
