@@ -166,6 +166,8 @@ export default function CreateDeal() {
 
       await api.submitTransaction(dealRequest)
       await refreshAccountState()
+      // Small delay so sequencer can process before the deal page loads
+      await new Promise(resolve => setTimeout(resolve, 1500))
       router.push(`/deals/${dealId}`)
     } catch (err: any) {
       setError(parseWalletError(err))
@@ -243,6 +245,8 @@ export default function CreateDeal() {
 
       await api.submitTransaction(submitRequest)
       await refreshAccountState()
+      // Small delay so sequencer can process before the deal page loads
+      await new Promise(resolve => setTimeout(resolve, 1500))
       router.push(`/deals/${dealId}`)
     } catch (err: any) {
       setError(parseWalletError(err))
