@@ -1,100 +1,134 @@
 import { ethers } from 'ethers'
 
-export interface DepositParams {
-  txHash: string
-  account: string
-  assetId: number
-  amount: bigint
-  chainId: number
+// ── EIP-712 Domain & Types ─────────────────────────────────────────────────
+// Domain: no chainId — cross-chain sequencer
+const EIP712_DOMAIN = {
+  name: 'Axync',
+  version: '1',
 }
 
-export interface WithdrawParams {
-  assetId: number
-  amount: bigint
-  to: string
-  chainId: number
-}
-
-export interface CreateDealParams {
-  dealId: number
-  visibility: 'public' | 'private'
-  taker?: string
-  assetBase: number
-  assetQuote: number
-  chainIdBase: number
-  chainIdQuote: number
-  amountBase: bigint
-  priceQuotePerBase: bigint
-}
-
-export interface AcceptDealParams {
-  dealId: number
-  amount?: bigint
-}
-
-export interface CancelDealParams {
-  dealId: number
+const EIP712_TYPES: Record<string, Record<string, Array<{ name: string; type: string }>>> = {
+  Deposit: {
+    Deposit: [
+      { name: 'from', type: 'address' },
+      { name: 'nonce', type: 'uint64' },
+      { name: 'txHash', type: 'bytes32' },
+      { name: 'account', type: 'address' },
+      { name: 'assetId', type: 'uint16' },
+      { name: 'amount', type: 'uint128' },
+      { name: 'chainId', type: 'uint64' },
+    ],
+  },
+  Withdraw: {
+    Withdraw: [
+      { name: 'from', type: 'address' },
+      { name: 'nonce', type: 'uint64' },
+      { name: 'assetId', type: 'uint16' },
+      { name: 'amount', type: 'uint128' },
+      { name: 'to', type: 'address' },
+      { name: 'chainId', type: 'uint64' },
+    ],
+  },
+  CreateDeal: {
+    CreateDeal: [
+      { name: 'from', type: 'address' },
+      { name: 'nonce', type: 'uint64' },
+      { name: 'dealId', type: 'uint64' },
+      { name: 'visibility', type: 'string' },
+      { name: 'taker', type: 'address' },
+      { name: 'assetBase', type: 'uint16' },
+      { name: 'assetQuote', type: 'uint16' },
+      { name: 'chainIdBase', type: 'uint64' },
+      { name: 'chainIdQuote', type: 'uint64' },
+      { name: 'amountBase', type: 'uint128' },
+      { name: 'priceQuotePerBase', type: 'uint128' },
+    ],
+  },
+  AcceptDeal: {
+    AcceptDeal: [
+      { name: 'from', type: 'address' },
+      { name: 'nonce', type: 'uint64' },
+      { name: 'dealId', type: 'uint64' },
+    ],
+  },
+  CancelDeal: {
+    CancelDeal: [
+      { name: 'from', type: 'address' },
+      { name: 'nonce', type: 'uint64' },
+      { name: 'dealId', type: 'uint64' },
+    ],
+  },
 }
 
 /**
- * Create transaction hash for signing (Ethereum message format)
+ * Build the EIP-712 value object for a given transaction kind + payload
  */
-export function createTxHash(
-  from: string,
-  nonce: number,
-  kind: string,
-  payload: any
-): string {
-  const message = ethers.solidityPackedKeccak256(
-    ['address', 'uint64', 'uint8', 'bytes'],
-    [
-      from,
-      nonce,
-      getKindByte(kind),
-      ethers.AbiCoder.defaultAbiCoder().encode(
-        ['bytes'],
-        [ethers.toUtf8Bytes(JSON.stringify(payload))]
-      ),
-    ]
-  )
+function buildEIP712Value(from: string, nonce: number, kind: string, payload: any): Record<string, any> {
+  const base = { from, nonce }
 
-  // Ethereum signed message prefix
-  const prefix = '\x19Ethereum Signed Message:\n' + String(message.length)
-  return ethers.solidityPackedKeccak256(
-    ['string', 'bytes32'],
-    [prefix, message]
-  )
-}
-
-function getKindByte(kind: string): number {
   switch (kind) {
     case 'Deposit':
-      return 0
+      return {
+        ...base,
+        txHash: payload.txHash,
+        account: payload.account,
+        assetId: payload.assetId,
+        amount: BigInt(payload.amount),
+        chainId: payload.chainId,
+      }
     case 'Withdraw':
-      return 1
+      return {
+        ...base,
+        assetId: payload.assetId,
+        amount: BigInt(payload.amount),
+        to: payload.to,
+        chainId: payload.chainId,
+      }
     case 'CreateDeal':
-      return 2
+      return {
+        ...base,
+        dealId: payload.dealId,
+        visibility: payload.visibility, // "Public" or "Direct"
+        taker: payload.taker || ethers.ZeroAddress,
+        assetBase: payload.assetBase,
+        assetQuote: payload.assetQuote,
+        chainIdBase: payload.chainIdBase,
+        chainIdQuote: payload.chainIdQuote,
+        amountBase: BigInt(payload.amountBase),
+        priceQuotePerBase: BigInt(payload.priceQuotePerBase),
+      }
     case 'AcceptDeal':
-      return 3
+      return {
+        ...base,
+        dealId: payload.dealId,
+      }
     case 'CancelDeal':
-      return 4
+      return {
+        ...base,
+        dealId: payload.dealId,
+      }
     default:
       throw new Error(`Unknown transaction kind: ${kind}`)
   }
 }
 
 /**
- * Sign transaction with wallet
+ * Sign transaction using EIP-712 typed data (shows structured, readable data in MetaMask)
  */
-export async function signTransaction(
+export async function signTransactionCorrect(
   signer: ethers.Signer,
   from: string,
   nonce: number,
   kind: string,
   payload: any
 ): Promise<string> {
-  const messageHash = createTxHash(from, nonce, kind, payload)
-  const signature = await signer.signMessage(ethers.getBytes(messageHash))
+  const types = EIP712_TYPES[kind]
+  if (!types) {
+    throw new Error(`No EIP-712 types defined for kind: ${kind}`)
+  }
+
+  const value = buildEIP712Value(from, nonce, kind, payload)
+  const signature = await (signer as ethers.JsonRpcSigner).signTypedData(EIP712_DOMAIN, types, value)
   return signature
 }
 
@@ -122,383 +156,28 @@ export function parseAmount(amount: string, decimals: number = 18): bigint {
   if (!amount || amount.trim() === '') {
     return BigInt(0)
   }
-  
+
   // Remove any non-numeric characters except decimal point and minus sign
   // Replace comma with dot for European number format
   let cleaned = amount.trim()
     .replace(',', '.') // Replace comma with dot
     .replace(/[^\d.-]/g, '') // Remove all non-numeric characters except . and -
-  
+
   // If empty after cleaning, return 0
   if (!cleaned || cleaned === '' || cleaned === '-' || cleaned === '.') {
     return BigInt(0)
   }
-  
+
   // Validate that it's a valid number
   if (!/^-?\d*\.?\d+$/.test(cleaned)) {
     return BigInt(0)
   }
-  
+
   try {
     return ethers.parseUnits(cleaned, decimals)
   } catch (error) {
     console.warn('Failed to parse amount:', amount, error)
     return BigInt(0)
   }
-}
-
-/**
- * Create transaction hash for signing (matches Rust tx_hash function)
- */
-export function createTxHashForSigning(
-  from: string,
-  nonce: number,
-  kind: string,
-  payload: any
-): Uint8Array {
-  const fromBytes = ethers.getBytes(from)
-  const nonceBytes = new Uint8Array(8)
-  const nonceView = new DataView(nonceBytes.buffer)
-  nonceView.setBigUint64(0, BigInt(nonce), true) // little-endian
-
-  const kindByte = getKindByte(kind)
-
-  // Build payload bytes based on kind
-  let payloadBytes = new Uint8Array(0)
-  switch (kind) {
-    case 'Deposit': {
-      const txHashBytes = ethers.getBytes(payload.txHash)
-      const accountBytes = ethers.getBytes(payload.account)
-      const assetIdBytes = new Uint8Array(2)
-      const assetIdView = new DataView(assetIdBytes.buffer)
-      assetIdView.setUint16(0, payload.assetId, true)
-      const amountBytes = new Uint8Array(16)
-      const amountView = new DataView(amountBytes.buffer)
-      amountView.setBigUint64(0, BigInt(payload.amount), true)
-      amountView.setBigUint64(8, BigInt(0), true)
-      const chainIdBytes = new Uint8Array(8)
-      const chainIdView = new DataView(chainIdBytes.buffer)
-      chainIdView.setBigUint64(0, BigInt(payload.chainId), true)
-
-      payloadBytes = new Uint8Array(
-        txHashBytes.length +
-          accountBytes.length +
-          assetIdBytes.length +
-          amountBytes.length +
-          chainIdBytes.length
-      )
-      let offset = 0
-      payloadBytes.set(txHashBytes, offset)
-      offset += txHashBytes.length
-      payloadBytes.set(accountBytes, offset)
-      offset += accountBytes.length
-      payloadBytes.set(assetIdBytes, offset)
-      offset += assetIdBytes.length
-      payloadBytes.set(amountBytes, offset)
-      offset += amountBytes.length
-      payloadBytes.set(chainIdBytes, offset)
-      break
-    }
-    case 'CreateDeal': {
-      const dealIdBytes = new Uint8Array(8)
-      const dealIdView = new DataView(dealIdBytes.buffer)
-      dealIdView.setBigUint64(0, BigInt(payload.dealId), true)
-      const visibilityByte = payload.visibility === 'Public' ? 0 : 1
-      const takerBytes = payload.taker ? ethers.getBytes(payload.taker) : null
-      const assetBaseBytes = new Uint8Array(2)
-      const assetBaseView = new DataView(assetBaseBytes.buffer)
-      assetBaseView.setUint16(0, payload.assetBase, true)
-      const assetQuoteBytes = new Uint8Array(2)
-      const assetQuoteView = new DataView(assetQuoteBytes.buffer)
-      assetQuoteView.setUint16(0, payload.assetQuote, true)
-      const chainIdBaseBytes = new Uint8Array(8)
-      const chainIdBaseView = new DataView(chainIdBaseBytes.buffer)
-      chainIdBaseView.setBigUint64(0, BigInt(payload.chainIdBase), true)
-      const chainIdQuoteBytes = new Uint8Array(8)
-      const chainIdQuoteView = new DataView(chainIdQuoteBytes.buffer)
-      chainIdQuoteView.setBigUint64(0, BigInt(payload.chainIdQuote), true)
-      const amountBaseBytes = new Uint8Array(16)
-      const amountBaseView = new DataView(amountBaseBytes.buffer)
-      amountBaseView.setBigUint64(0, BigInt(payload.amountBase), true)
-      amountBaseView.setBigUint64(8, BigInt(0), true)
-      const priceBytes = new Uint8Array(16)
-      const priceView = new DataView(priceBytes.buffer)
-      priceView.setBigUint64(0, BigInt(payload.priceQuotePerBase), true)
-      priceView.setBigUint64(8, BigInt(0), true)
-
-      const totalLength =
-        dealIdBytes.length +
-        1 + // visibility
-        1 + // taker flag
-        (takerBytes ? takerBytes.length : 0) +
-        assetBaseBytes.length +
-        assetQuoteBytes.length +
-        chainIdBaseBytes.length +
-        chainIdQuoteBytes.length +
-        amountBaseBytes.length +
-        priceBytes.length
-
-      payloadBytes = new Uint8Array(totalLength)
-      let offset = 0
-      payloadBytes.set(dealIdBytes, offset)
-      offset += dealIdBytes.length
-      payloadBytes[offset++] = visibilityByte
-      if (takerBytes) {
-        payloadBytes[offset++] = 1
-        payloadBytes.set(takerBytes, offset)
-        offset += takerBytes.length
-      } else {
-        payloadBytes[offset++] = 0
-      }
-      payloadBytes.set(assetBaseBytes, offset)
-      offset += assetBaseBytes.length
-      payloadBytes.set(assetQuoteBytes, offset)
-      offset += assetQuoteBytes.length
-      payloadBytes.set(chainIdBaseBytes, offset)
-      offset += chainIdBaseBytes.length
-      payloadBytes.set(chainIdQuoteBytes, offset)
-      offset += chainIdQuoteBytes.length
-      payloadBytes.set(amountBaseBytes, offset)
-      offset += amountBaseBytes.length
-      payloadBytes.set(priceBytes, offset)
-      break
-    }
-    default:
-      throw new Error(`Unsupported transaction kind: ${kind}`)
-  }
-
-  // Combine all parts
-  const data = new Uint8Array(
-    fromBytes.length + nonceBytes.length + 1 + payloadBytes.length
-  )
-  let offset = 0
-  data.set(fromBytes, offset)
-  offset += fromBytes.length
-  data.set(nonceBytes, offset)
-  offset += nonceBytes.length
-  data[offset++] = kindByte
-  data.set(payloadBytes, offset)
-
-  // Add Ethereum signed message prefix
-  const prefix = new TextEncoder().encode('\x19Ethereum Signed Message:\n')
-  const messageLen = data.length.toString()
-  const messageLenBytes = new TextEncoder().encode(messageLen)
-  const prefixed = new Uint8Array(
-    prefix.length + messageLenBytes.length + data.length
-  )
-  offset = 0
-  prefixed.set(prefix, offset)
-  offset += prefix.length
-  prefixed.set(messageLenBytes, offset)
-  offset += messageLenBytes.length
-  prefixed.set(data, offset)
-
-  return prefixed
-}
-
-/**
- * Sign transaction with wallet (using correct hash format)
- * Note: This creates the message in the same format as Rust tx_hash function
- */
-export async function signTransactionCorrect(
-  signer: ethers.Signer,
-  from: string,
-  nonce: number,
-  kind: string,
-  payload: any
-): Promise<string> {
-  // Create message bytes (without prefix, as signMessage will add it)
-  const fromBytes = ethers.getBytes(from)
-  const nonceBytes = new Uint8Array(8)
-  const nonceView = new DataView(nonceBytes.buffer)
-  nonceView.setBigUint64(0, BigInt(nonce), true) // little-endian
-
-  const kindByte = getKindByte(kind)
-
-  // Build payload bytes based on kind
-  let payloadBytes = new Uint8Array(0)
-  switch (kind) {
-    case 'Deposit': {
-      const txHashBytes = ethers.getBytes(payload.txHash)
-      const accountBytes = ethers.getBytes(payload.account)
-      const assetIdBytes = new Uint8Array(2)
-      const assetIdView = new DataView(assetIdBytes.buffer)
-      assetIdView.setUint16(0, payload.assetId, true)
-      const amountBytes = new Uint8Array(16)
-      const amountView = new DataView(amountBytes.buffer)
-      amountView.setBigUint64(0, BigInt(payload.amount), true)
-      amountView.setBigUint64(8, BigInt(0), true)
-      const chainIdBytes = new Uint8Array(8)
-      const chainIdView = new DataView(chainIdBytes.buffer)
-      chainIdView.setBigUint64(0, BigInt(payload.chainId), true)
-
-      payloadBytes = new Uint8Array(
-        txHashBytes.length +
-          accountBytes.length +
-          assetIdBytes.length +
-          amountBytes.length +
-          chainIdBytes.length
-      )
-      let offset = 0
-      payloadBytes.set(txHashBytes, offset)
-      offset += txHashBytes.length
-      payloadBytes.set(accountBytes, offset)
-      offset += accountBytes.length
-      payloadBytes.set(assetIdBytes, offset)
-      offset += assetIdBytes.length
-      payloadBytes.set(amountBytes, offset)
-      offset += amountBytes.length
-      payloadBytes.set(chainIdBytes, offset)
-      break
-    }
-    case 'CreateDeal': {
-      const dealIdBytes = new Uint8Array(8)
-      const dealIdView = new DataView(dealIdBytes.buffer)
-      dealIdView.setBigUint64(0, BigInt(payload.dealId), true)
-      const visibilityByte = payload.visibility === 'Public' ? 0 : 1
-      const takerBytes = payload.taker ? ethers.getBytes(payload.taker) : null
-      const assetBaseBytes = new Uint8Array(2)
-      const assetBaseView = new DataView(assetBaseBytes.buffer)
-      assetBaseView.setUint16(0, payload.assetBase, true)
-      const assetQuoteBytes = new Uint8Array(2)
-      const assetQuoteView = new DataView(assetQuoteBytes.buffer)
-      assetQuoteView.setUint16(0, payload.assetQuote, true)
-      const chainIdBaseBytes = new Uint8Array(8)
-      const chainIdBaseView = new DataView(chainIdBaseBytes.buffer)
-      chainIdBaseView.setBigUint64(0, BigInt(payload.chainIdBase), true)
-      const chainIdQuoteBytes = new Uint8Array(8)
-      const chainIdQuoteView = new DataView(chainIdQuoteBytes.buffer)
-      chainIdQuoteView.setBigUint64(0, BigInt(payload.chainIdQuote), true)
-      const amountBaseBytes = new Uint8Array(16)
-      const amountBaseView = new DataView(amountBaseBytes.buffer)
-      amountBaseView.setBigUint64(0, BigInt(payload.amountBase), true)
-      amountBaseView.setBigUint64(8, BigInt(0), true)
-      const priceBytes = new Uint8Array(16)
-      const priceView = new DataView(priceBytes.buffer)
-      priceView.setBigUint64(0, BigInt(payload.priceQuotePerBase), true)
-      priceView.setBigUint64(8, BigInt(0), true)
-
-      const totalLength =
-        dealIdBytes.length +
-        1 + // visibility
-        1 + // taker flag
-        (takerBytes ? takerBytes.length : 0) +
-        assetBaseBytes.length +
-        assetQuoteBytes.length +
-        chainIdBaseBytes.length +
-        chainIdQuoteBytes.length +
-        amountBaseBytes.length +
-        priceBytes.length
-
-      payloadBytes = new Uint8Array(totalLength)
-      let offset = 0
-      payloadBytes.set(dealIdBytes, offset)
-      offset += dealIdBytes.length
-      payloadBytes[offset++] = visibilityByte
-      if (takerBytes) {
-        payloadBytes[offset++] = 1
-        payloadBytes.set(takerBytes, offset)
-        offset += takerBytes.length
-      } else {
-        payloadBytes[offset++] = 0
-      }
-      payloadBytes.set(assetBaseBytes, offset)
-      offset += assetBaseBytes.length
-      payloadBytes.set(assetQuoteBytes, offset)
-      offset += assetQuoteBytes.length
-      payloadBytes.set(chainIdBaseBytes, offset)
-      offset += chainIdBaseBytes.length
-      payloadBytes.set(chainIdQuoteBytes, offset)
-      offset += chainIdQuoteBytes.length
-      payloadBytes.set(amountBaseBytes, offset)
-      offset += amountBaseBytes.length
-      payloadBytes.set(priceBytes, offset)
-      break
-    }
-    case 'AcceptDeal': {
-      const dealIdBytes = new Uint8Array(8)
-      const dealIdView = new DataView(dealIdBytes.buffer)
-      dealIdView.setBigUint64(0, BigInt(payload.dealId), true)
-      const hasAmount = payload.amount !== null && payload.amount !== undefined
-      const amountBytes = hasAmount
-        ? (() => {
-            const bytes = new Uint8Array(16)
-            const view = new DataView(bytes.buffer)
-            view.setBigUint64(0, BigInt(payload.amount), true)
-            view.setBigUint64(8, BigInt(0), true)
-            return bytes
-          })()
-        : null
-
-      const totalLength = dealIdBytes.length + 1 + (amountBytes ? amountBytes.length : 0)
-      payloadBytes = new Uint8Array(totalLength)
-      let offset = 0
-      payloadBytes.set(dealIdBytes, offset)
-      offset += dealIdBytes.length
-      if (amountBytes) {
-        payloadBytes[offset++] = 1
-        payloadBytes.set(amountBytes, offset)
-      } else {
-        payloadBytes[offset++] = 0
-      }
-      break
-    }
-    case 'CancelDeal': {
-      const dealIdBytes = new Uint8Array(8)
-      const dealIdView = new DataView(dealIdBytes.buffer)
-      dealIdView.setBigUint64(0, BigInt(payload.dealId), true)
-      payloadBytes = dealIdBytes
-      break
-    }
-    case 'Withdraw': {
-      const assetIdBytes = new Uint8Array(2)
-      const assetIdView = new DataView(assetIdBytes.buffer)
-      assetIdView.setUint16(0, payload.assetId, true)
-      const amountBytes = new Uint8Array(16)
-      const amountView = new DataView(amountBytes.buffer)
-      amountView.setBigUint64(0, BigInt(payload.amount), true)
-      amountView.setBigUint64(8, BigInt(0), true)
-      const toBytes = ethers.getBytes(payload.to)
-      const chainIdBytes = new Uint8Array(8)
-      const chainIdView = new DataView(chainIdBytes.buffer)
-      chainIdView.setBigUint64(0, BigInt(payload.chainId), true)
-
-      payloadBytes = new Uint8Array(
-        assetIdBytes.length +
-          amountBytes.length +
-          toBytes.length +
-          chainIdBytes.length
-      )
-      let offset = 0
-      payloadBytes.set(assetIdBytes, offset)
-      offset += assetIdBytes.length
-      payloadBytes.set(amountBytes, offset)
-      offset += amountBytes.length
-      payloadBytes.set(toBytes, offset)
-      offset += toBytes.length
-      payloadBytes.set(chainIdBytes, offset)
-      break
-    }
-    default:
-      throw new Error(`Unsupported transaction kind: ${kind}`)
-  }
-
-  // Combine all parts: from + nonce + kind + payload
-  const data = new Uint8Array(
-    fromBytes.length + nonceBytes.length + 1 + payloadBytes.length
-  )
-  let offset = 0
-  data.set(fromBytes, offset)
-  offset += fromBytes.length
-  data.set(nonceBytes, offset)
-  offset += nonceBytes.length
-  data[offset++] = kindByte
-  data.set(payloadBytes, offset)
-
-  // Use signMessage which will add prefix and hash automatically
-  // It will create: Keccak256("\x19Ethereum Signed Message:\n" + len + data)
-  // Which matches the Rust format
-  const signature = await signer.signMessage(data)
-  return signature
 }
 

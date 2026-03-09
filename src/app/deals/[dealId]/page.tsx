@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Layout from '@/components/Layout'
 import { api, Deal } from '@/services/api'
 import { useWallet } from '@/hooks/useWallet'
@@ -327,6 +328,34 @@ export default function DealDetails() {
               <div className="p-4 bg-elevated border border-edge rounded-xl flex items-center gap-3">
                 <div className="w-4 h-4 border-2 border-dim border-t-transparent rounded-full animate-spin" />
                 <p className="text-dim text-sm">Loading account...</p>
+              </div>
+            ) : deal.status === 'Settled' ? (
+              <div className="space-y-3">
+                <div className="p-4 bg-success/5 border border-success/20 rounded-xl">
+                  <p className="text-success text-sm font-semibold mb-1">Deal Settled ✓</p>
+                  <p className="text-dim text-xs">
+                    {isMaker
+                      ? `You received ${formatAmount(BigInt(deal.amount_remaining || deal.amount_base))} ETH on ${getChainName(deal.chain_id_quote)} from the taker.`
+                      : `You sent ${formatAmount(BigInt(deal.amount_remaining || deal.amount_base))} ETH on ${getChainName(deal.chain_id_quote)} to the maker.`
+                    }
+                    {' '}You can now withdraw your funds to your wallet.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Link href="/withdrawals" className="btn-silver">
+                    Withdraw Funds
+                  </Link>
+                  <Link href="/account" className="btn-outline">
+                    View Account
+                  </Link>
+                </div>
+              </div>
+            ) : deal.status === 'Cancelled' ? (
+              <div className="p-4 bg-danger/5 border border-danger/20 rounded-xl">
+                <p className="text-danger text-sm font-semibold mb-1">Deal Cancelled</p>
+                <p className="text-dim text-xs">
+                  This deal was cancelled. Deposited funds have been returned to the maker&apos;s balance.
+                </p>
               </div>
             ) : (
               <div className="flex gap-3 items-center">
