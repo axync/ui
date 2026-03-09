@@ -6,7 +6,7 @@ import Layout from '@/components/Layout'
 import { api, AccountState } from '@/services/api'
 import { ethers } from 'ethers'
 import { parseAmount, signTransactionCorrect, formatAmount } from '@/utils/transactions'
-import { ASSETS, AVAILABLE_CHAINS, DEFAULTS, getDepositContract, getChainName } from '@/constants/config'
+import { ASSETS, AVAILABLE_CHAINS, DEFAULTS, getDepositContract, getChainName, getChainHex } from '@/constants/config'
 
 function parseErrorMessage(err: any): string {
   const msg = err?.message || err?.reason || 'Unknown error'
@@ -86,6 +86,45 @@ export default function CreateDeal() {
     return current >= required
   }
 
+  const switchToChain = async (targetChainId: number) => {
+    if (!window.ethereum) return
+    const hexChainId = getChainHex(targetChainId)
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: hexChainId }],
+      })
+    } catch (switchError: any) {
+      // Chain not added — try to add it
+      if (switchError.code === 4902) {
+        const chainInfo: Record<number, any> = {
+          11155111: {
+            chainId: hexChainId,
+            chainName: 'Ethereum Sepolia',
+            rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'],
+            nativeCurrency: { name: 'SepoliaETH', symbol: 'ETH', decimals: 18 },
+            blockExplorerUrls: ['https://sepolia.etherscan.io'],
+          },
+          84532: {
+            chainId: hexChainId,
+            chainName: 'Base Sepolia',
+            rpcUrls: ['https://sepolia.base.org'],
+            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+            blockExplorerUrls: ['https://sepolia.basescan.org'],
+          },
+        }
+        if (chainInfo[targetChainId]) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [chainInfo[targetChainId]],
+          })
+        }
+      } else {
+        throw switchError
+      }
+    }
+  }
+
   const handleDepositAndCreateDeal = async () => {
     if (!address || !window.ethereum || !accountState) {
       alert('Please connect your wallet')
@@ -104,9 +143,11 @@ export default function CreateDeal() {
     setError(null)
 
     try {
+      const chainIdBaseNum = parseInt(chainIdBase)
+      await switchToChain(chainIdBaseNum)
+
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
-      const chainIdBaseNum = parseInt(chainIdBase)
       const depositContract = getDepositContract(chainIdBaseNum)
 
       if (!depositContract || !ethers.isAddress(depositContract)) {
