@@ -8,6 +8,22 @@ import { ethers } from 'ethers'
 import { parseAmount, signTransactionCorrect, formatAmount } from '@/utils/transactions'
 import { ASSETS, AVAILABLE_CHAINS, DEFAULTS, getDepositContract, getChainName } from '@/constants/config'
 
+function parseErrorMessage(err: any): string {
+  const msg = err?.message || err?.reason || 'Unknown error'
+  if (msg.includes('INSUFFICIENT_FUNDS') || msg.includes('insufficient funds')) {
+    return 'Insufficient funds in your wallet. Please add Sepolia ETH and try again.'
+  }
+  if (msg.includes('user rejected') || msg.includes('ACTION_REJECTED') || err?.code === 4001) {
+    return 'Transaction rejected by user.'
+  }
+  if (msg.includes('nonce')) {
+    return 'Transaction nonce error. Please try again.'
+  }
+  // Strip long hex/technical data
+  const clean = msg.replace(/\(transaction=\{.*?\}\)/s, '').replace(/\(action=.*?\)/s, '').trim()
+  return clean.length > 200 ? clean.slice(0, 200) + '...' : clean
+}
+
 export default function CreateDeal() {
   const router = useRouter()
   const [address, setAddress] = useState<string | null>(null)
@@ -179,7 +195,7 @@ export default function CreateDeal() {
       await loadAccountState(address)
       router.push(`/deals/${dealId}`)
     } catch (err: any) {
-      setError(err.message || 'Failed to process deposit and create deal')
+      setError(parseErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -266,7 +282,7 @@ export default function CreateDeal() {
       await loadAccountState(address)
       router.push(`/deals/${dealId}`)
     } catch (err: any) {
-      setError(err.message || 'Failed to create deal')
+      setError(parseErrorMessage(err))
     } finally {
       setLoading(false)
     }
