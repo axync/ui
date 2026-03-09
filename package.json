@@ -1,7 +1,7 @@
 {
-  "name": "zkclear-frontend",
+  "name": "axync-ui",
   "version": "0.1.0",
-  "description": "ZKClear Frontend — institutional UI for creating, signing, and managing OTC settlements with zero-knowledge guarantees.",
+  "description": "Axync UI — institutional web application for creating, signing, and managing cross-chain OTC settlements with zero-knowledge guarantees.",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
@@ -30,10 +30,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Alert17/zkclear-frontend.git"
+    "url": "git+https://github.com/Alert17/axync-ui.git"
   },
   "keywords": [
-    "zkclear",
+    "axync",
     "zero-knowledge",
     "otc",
     "settlement",

@@ -29,7 +29,7 @@ export default function Home() {
       <div className="px-4 py-8">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Welcome to ZKClear
+            Welcome to Axync
           </h1>
           <p className="text-xl text-gray-600 mb-8">
             Institutional OTC Settlement Platform with Zero-Knowledge Guarantees
