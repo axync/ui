@@ -7,7 +7,11 @@ export default function WalletConnect() {
   const [isConnecting, setIsConnecting] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
+    if (typeof window === 'undefined' || !window.ethereum) return
+
+    let handleAccountsChanged: ((accounts: string[]) => void) | null = null
+
+    try {
       window.ethereum
         .request({ method: 'eth_accounts' })
         .then((accounts: string[]) => {
@@ -15,9 +19,9 @@ export default function WalletConnect() {
             setAddress(accounts[0])
           }
         })
-        .catch(console.error)
+        .catch(() => {})
 
-      const handleAccountsChanged = (accounts: string[]) => {
+      handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length > 0) {
           setAddress(accounts[0])
         } else {
@@ -26,9 +30,17 @@ export default function WalletConnect() {
       }
 
       window.ethereum.on('accountsChanged', handleAccountsChanged)
+    } catch {
+      // Some wallets don't support .on() — ignore
+    }
 
-      return () => {
-        window.ethereum?.removeListener('accountsChanged', handleAccountsChanged)
+    return () => {
+      try {
+        if (handleAccountsChanged) {
+          window.ethereum?.removeListener('accountsChanged', handleAccountsChanged)
+        }
+      } catch {
+        // Ignore cleanup errors
       }
     }
   }, [])
