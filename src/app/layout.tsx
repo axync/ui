@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Axync - OTC Settlement Platform',
-  description: 'Institutional OTC Settlement Platform with Zero-Knowledge Guarantees',
+  title: 'Axync - Cross-Chain Settlement',
+  description: 'Move value across chains. No bridge required. Verified by zero-knowledge proofs.',
 }
 
 export default function RootLayout({
@@ -12,9 +12,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className="dark">
+      <body className="font-body">{children}</body>
     </html>
   )
 }
-

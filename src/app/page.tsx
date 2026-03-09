@@ -10,84 +10,78 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check API health
     api
       .healthCheck()
-      .then((data) => {
-        setHealth(data)
-      })
-      .catch((err) => {
-        console.error('API health check failed:', err)
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+      .then((data) => setHealth(data))
+      .catch((err) => console.error('API health check failed:', err))
+      .finally(() => setLoading(false))
   }, [])
 
   return (
     <Layout>
-      <div className="px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Welcome to Axync
-          </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Institutional OTC Settlement Platform with Zero-Knowledge Guarantees
-          </p>
+      <div className="py-12">
+        {/* Hero */}
+        <div className="text-center mb-16 relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-[radial-gradient(ellipse,rgba(148,163,184,0.04)_0%,transparent_70%)] pointer-events-none" />
 
-          {/* API Status */}
-          <div className="mb-8">
+          <div className="relative">
+            <p className="font-mono text-[10px] tracking-[4px] uppercase text-silver-lo mb-4">
+              Cross-Chain Settlement
+            </p>
+            <h1 className="font-heading text-4xl sm:text-5xl font-bold text-bright mb-4 tracking-tight">
+              Proof, not promises.
+            </h1>
+            <p className="text-dim max-w-lg mx-auto text-base">
+              Move value across chains without bridges. Every settlement verified by zero-knowledge proofs.
+            </p>
+          </div>
+
+          {/* Status */}
+          <div className="mt-8 flex justify-center">
             {loading ? (
-              <div className="inline-flex items-center px-4 py-2 bg-gray-100 rounded-md">
-                <span className="text-gray-600">Checking API status...</span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-elevated border border-edge">
+                <div className="w-2 h-2 rounded-full bg-muted animate-pulse" />
+                <span className="font-mono text-xs text-dim">Checking status...</span>
               </div>
             ) : health ? (
-              <div
-                className={`inline-flex items-center px-4 py-2 rounded-md ${
-                  health.status === 'healthy'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}
-              >
-                <span className="mr-2">
-                  {health.status === 'healthy' ? '✓' : '⚠'}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-elevated border border-edge">
+                <div className={`w-2 h-2 rounded-full ${health.status === 'healthy' ? 'bg-success' : 'bg-warning'}`} />
+                <span className="font-mono text-xs text-silver-lo">
+                  {health.status === 'healthy' ? 'Network Online' : 'Degraded'}
                 </span>
-                <span>API Status: {health.status}</span>
               </div>
             ) : (
-              <div className="inline-flex items-center px-4 py-2 bg-red-100 text-red-800 rounded-md">
-                <span className="mr-2">✗</span>
-                <span>API is not available</span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-elevated border border-edge">
+                <div className="w-2 h-2 rounded-full bg-danger" />
+                <span className="font-mono text-xs text-danger">Offline</span>
               </div>
             )}
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-2">Deals</h2>
-              <p className="text-gray-600 mb-4">
-                Create and manage OTC settlement deals. Deposit is automatic when needed.
-              </p>
-              <Link
-                href="/deals"
-                className="text-primary-600 hover:text-primary-700 font-medium"
-              >
-                Go to Deals →
-              </Link>
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-3xl mx-auto">
+          <Link href="/deals" className="group bg-surface border border-edge rounded-2xl p-6 hover:border-muted transition-all">
+            <div className="flex items-start justify-between mb-4">
+              <span className="font-mono text-[9px] tracking-[3px] uppercase text-silver-lo">Deals</span>
+              <span className="text-dim group-hover:text-silver-lo transition-colors text-lg">&rarr;</span>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-2">Withdrawals</h2>
-              <p className="text-gray-600 mb-4">
-                Withdraw your assets back to L1 chains
-              </p>
-              <Link
-                href="/withdrawals"
-                className="text-primary-600 hover:text-primary-700 font-medium"
-              >
-                Go to Withdrawals →
-              </Link>
+            <h2 className="font-heading text-xl font-semibold text-bright mb-2">Trade</h2>
+            <p className="text-sm text-dim leading-relaxed">
+              Create and accept cross-chain settlement deals. Deposit is automatic when needed.
+            </p>
+          </Link>
+
+          <Link href="/withdrawals" className="group bg-surface border border-edge rounded-2xl p-6 hover:border-muted transition-all">
+            <div className="flex items-start justify-between mb-4">
+              <span className="font-mono text-[9px] tracking-[3px] uppercase text-silver-lo">Withdraw</span>
+              <span className="text-dim group-hover:text-silver-lo transition-colors text-lg">&rarr;</span>
             </div>
-          </div>
+            <h2 className="font-heading text-xl font-semibold text-bright mb-2">Withdraw</h2>
+            <p className="text-sm text-dim leading-relaxed">
+              Withdraw settled assets back to their native chains with ZK proof verification.
+            </p>
+          </Link>
         </div>
       </div>
     </Layout>

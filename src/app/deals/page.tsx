@@ -5,18 +5,29 @@ import Link from 'next/link'
 import Layout from '@/components/Layout'
 import { api, Deal } from '@/services/api'
 import { formatAddress, formatAmount } from '@/utils/transactions'
+import { getChainName } from '@/constants/config'
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    Pending: 'bg-warning/10 text-warning',
+    Settled: 'bg-success/10 text-success',
+    Cancelled: 'bg-danger/10 text-danger',
+    Expired: 'bg-muted/20 text-dim',
+  }
+  return (
+    <span className={`font-mono text-[10px] px-2.5 py-1 rounded-md ${styles[status] || styles.Expired}`}>
+      {status}
+    </span>
+  )
+}
 
 export default function Deals() {
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'my' | 'active' | 'completed'>(
-    'all'
-  )
+  const [filter, setFilter] = useState<'all' | 'my' | 'pending' | 'settled'>('all')
 
   useEffect(() => {
-    // For now, we'll show a placeholder
-    // In the future, we'll add an endpoint to list all deals
     loadDeals()
   }, [filter])
 
@@ -25,134 +36,105 @@ export default function Deals() {
     setError(null)
     try {
       const params: any = {}
-      if (filter === 'active') {
-        params.status = 'pending'
-      } else if (filter === 'completed') {
-        params.status = 'settled'
-      }
-      // TODO: Add address filter for 'my' deals when wallet is connected
-      
+      if (filter === 'pending') params.status = 'Pending'
+      else if (filter === 'settled') params.status = 'Settled'
       const response = await api.getDealsList(params)
       setDeals(response.deals)
     } catch (err: any) {
       setError(err.message || 'Failed to load deals')
-      console.error('Error loading deals:', err)
     } finally {
       setLoading(false)
     }
   }
 
+  const filters = [
+    { key: 'all', label: 'All' },
+    { key: 'my', label: 'My Deals' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'settled', label: 'Settled' },
+  ] as const
+
   return (
     <Layout>
-      <div className="px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Deals</h1>
-          <Link
-            href="/deals/create"
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-          >
-            Create Deal
+      <div>
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-bright">Deals</h1>
+            <p className="text-sm text-dim mt-1">Browse and manage cross-chain settlements</p>
+          </div>
+          <Link href="/deals/create" className="btn-silver">
+            New Deal
           </Link>
         </div>
 
         {/* Filters */}
-        <div className="mb-6 flex space-x-4">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-md ${
-              filter === 'all'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter('my')}
-            className={`px-4 py-2 rounded-md ${
-              filter === 'my'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            My Deals
-          </button>
-          <button
-            onClick={() => setFilter('active')}
-            className={`px-4 py-2 rounded-md ${
-              filter === 'active'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Active
-          </button>
-          <button
-            onClick={() => setFilter('completed')}
-            className={`px-4 py-2 rounded-md ${
-              filter === 'completed'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            Completed
-          </button>
+        <div className="flex gap-1 mb-6 bg-surface border border-edge rounded-xl p-1 w-fit">
+          {filters.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-body transition-colors ${
+                filter === f.key
+                  ? 'bg-elevated text-bright'
+                  : 'text-dim hover:text-silver-lo'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
 
+        {/* Content */}
         {loading ? (
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600">Loading deals...</p>
+          <div className="bg-surface border border-edge rounded-2xl p-12 text-center">
+            <p className="text-dim">Loading deals...</p>
           </div>
         ) : error ? (
-          <div className="bg-red-50 rounded-lg shadow p-6">
-            <p className="text-red-600">Error: {error}</p>
+          <div className="bg-danger/5 border border-danger/20 rounded-2xl p-6">
+            <p className="text-danger text-sm">{error}</p>
           </div>
         ) : deals.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600 text-center py-8">
-              No deals found. Create your first deal to get started!
-            </p>
+          <div className="bg-surface border border-edge rounded-2xl p-12 text-center">
+            <p className="text-dim mb-4">No deals found</p>
+            <Link href="/deals/create" className="btn-outline text-xs">Create your first deal</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {deals.map((deal) => (
               <Link
                 key={deal.deal_id}
                 href={`/deals/${deal.deal_id}`}
-                className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+                className="bg-surface border border-edge rounded-2xl p-5 hover:border-muted transition-all group"
               >
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Deal #{deal.deal_id}</h3>
-                  <span
-                    className={`px-2 py-1 text-xs rounded ${
-                      deal.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : deal.status === 'completed'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {deal.status}
-                  </span>
+                  <span className="font-mono text-xs text-dim">#{deal.deal_id}</span>
+                  <StatusBadge status={deal.status} />
                 </div>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-gray-600">Maker: </span>
-                    <span className="font-mono text-gray-900">{formatAddress(deal.maker)}</span>
+
+                <div className="mb-4">
+                  <div className="font-heading text-lg font-semibold text-bright">
+                    {formatAmount(BigInt(deal.amount_base))} ETH
+                  </div>
+                  <div className="font-mono text-xs text-silver-lo mt-1">
+                    {getChainName(deal.chain_id_base)} &rarr; {getChainName(deal.chain_id_quote)}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-dim">Maker</span>
+                    <span className="font-mono text-silver-lo">{formatAddress(deal.maker)}</span>
                   </div>
                   {deal.taker && (
-                    <div>
-                      <span className="text-gray-600">Taker: </span>
-                      <span className="font-mono text-gray-900">{formatAddress(deal.taker)}</span>
+                    <div className="flex justify-between">
+                      <span className="text-dim">Taker</span>
+                      <span className="font-mono text-silver-lo">{formatAddress(deal.taker)}</span>
                     </div>
                   )}
-                  <div>
-                    <span className="text-gray-600">Amount: </span>
-                    <span className="text-gray-900">{formatAmount(BigInt(deal.amount_base))}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Price: </span>
-                    <span className="text-gray-900">{formatAmount(BigInt(deal.price_quote_per_base))}</span>
+                  <div className="flex justify-between">
+                    <span className="text-dim">Rate</span>
+                    <span className="font-mono text-silver-lo">{deal.price_quote_per_base}:1</span>
                   </div>
                 </div>
               </Link>

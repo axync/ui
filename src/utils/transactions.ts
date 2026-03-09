@@ -176,9 +176,9 @@ export function createTxHashForSigning(
       const amountView = new DataView(amountBytes.buffer)
       amountView.setBigUint64(0, BigInt(payload.amount), true)
       amountView.setBigUint64(8, BigInt(0), true)
-      const chainIdBytes = new Uint8Array(4)
+      const chainIdBytes = new Uint8Array(8)
       const chainIdView = new DataView(chainIdBytes.buffer)
-      chainIdView.setUint32(0, payload.chainId, true)
+      chainIdView.setBigUint64(0, BigInt(payload.chainId), true)
 
       payloadBytes = new Uint8Array(
         txHashBytes.length +
@@ -211,12 +211,12 @@ export function createTxHashForSigning(
       const assetQuoteBytes = new Uint8Array(2)
       const assetQuoteView = new DataView(assetQuoteBytes.buffer)
       assetQuoteView.setUint16(0, payload.assetQuote, true)
-      const chainIdBaseBytes = new Uint8Array(4)
+      const chainIdBaseBytes = new Uint8Array(8)
       const chainIdBaseView = new DataView(chainIdBaseBytes.buffer)
-      chainIdBaseView.setUint32(0, payload.chainIdBase, true)
-      const chainIdQuoteBytes = new Uint8Array(4)
+      chainIdBaseView.setBigUint64(0, BigInt(payload.chainIdBase), true)
+      const chainIdQuoteBytes = new Uint8Array(8)
       const chainIdQuoteView = new DataView(chainIdQuoteBytes.buffer)
-      chainIdQuoteView.setUint32(0, payload.chainIdQuote, true)
+      chainIdQuoteView.setBigUint64(0, BigInt(payload.chainIdQuote), true)
       const amountBaseBytes = new Uint8Array(16)
       const amountBaseView = new DataView(amountBaseBytes.buffer)
       amountBaseView.setBigUint64(0, BigInt(payload.amountBase), true)
@@ -328,9 +328,9 @@ export async function signTransactionCorrect(
       const amountView = new DataView(amountBytes.buffer)
       amountView.setBigUint64(0, BigInt(payload.amount), true)
       amountView.setBigUint64(8, BigInt(0), true)
-      const chainIdBytes = new Uint8Array(4)
+      const chainIdBytes = new Uint8Array(8)
       const chainIdView = new DataView(chainIdBytes.buffer)
-      chainIdView.setUint32(0, payload.chainId, true)
+      chainIdView.setBigUint64(0, BigInt(payload.chainId), true)
 
       payloadBytes = new Uint8Array(
         txHashBytes.length +
@@ -363,12 +363,12 @@ export async function signTransactionCorrect(
       const assetQuoteBytes = new Uint8Array(2)
       const assetQuoteView = new DataView(assetQuoteBytes.buffer)
       assetQuoteView.setUint16(0, payload.assetQuote, true)
-      const chainIdBaseBytes = new Uint8Array(4)
+      const chainIdBaseBytes = new Uint8Array(8)
       const chainIdBaseView = new DataView(chainIdBaseBytes.buffer)
-      chainIdBaseView.setUint32(0, payload.chainIdBase, true)
-      const chainIdQuoteBytes = new Uint8Array(4)
+      chainIdBaseView.setBigUint64(0, BigInt(payload.chainIdBase), true)
+      const chainIdQuoteBytes = new Uint8Array(8)
       const chainIdQuoteView = new DataView(chainIdQuoteBytes.buffer)
-      chainIdQuoteView.setUint32(0, payload.chainIdQuote, true)
+      chainIdQuoteView.setBigUint64(0, BigInt(payload.chainIdQuote), true)
       const amountBaseBytes = new Uint8Array(16)
       const amountBaseView = new DataView(amountBaseBytes.buffer)
       amountBaseView.setBigUint64(0, BigInt(payload.amountBase), true)
@@ -459,9 +459,9 @@ export async function signTransactionCorrect(
       amountView.setBigUint64(0, BigInt(payload.amount), true)
       amountView.setBigUint64(8, BigInt(0), true)
       const toBytes = ethers.getBytes(payload.to)
-      const chainIdBytes = new Uint8Array(4)
+      const chainIdBytes = new Uint8Array(8)
       const chainIdView = new DataView(chainIdBytes.buffer)
-      chainIdView.setUint32(0, payload.chainId, true)
+      chainIdView.setBigUint64(0, BigInt(payload.chainId), true)
 
       payloadBytes = new Uint8Array(
         assetIdBytes.length +

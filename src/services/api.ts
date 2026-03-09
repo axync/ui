@@ -14,14 +14,11 @@ const apiClient = axios.create({
   },
 })
 
-// Add response interceptor for debugging
+// Add response interceptor for error logging
 apiClient.interceptors.response.use(
-  (response) => {
-    console.log('✅ API Response:', response.config.url, response.status)
-    return response
-  },
+  (response) => response,
   (error) => {
-    console.log('❌ API Error:', error.config?.url, error.response?.status, error.response?.data)
+    console.error('API Error:', error.config?.url, error.response?.status, error.response?.data)
     return Promise.reject(error)
   }
 )
@@ -51,8 +48,8 @@ export interface Deal {
   amount_base: string
   amount_remaining?: string
   price_quote_per_base: string
-  visibility: 'public' | 'private'
-  status: 'pending' | 'active' | 'completed' | 'cancelled'
+  visibility: 'Public' | 'Direct'
+  status: 'Pending' | 'Settled' | 'Cancelled' | 'Expired'
   created_at?: number
   expires_at?: number | null
   is_cross_chain?: boolean
@@ -87,29 +84,20 @@ export const api = {
 
   // Account endpoints
   async getAccountState(address: string): Promise<AccountState> {
-    console.log('📡 api.getAccountState called for:', address)
-    try {
-      const response = await apiClient.get(`/api/v1/account/${address}`)
-      console.log('✅ api.getAccountState success:', response.data)
-      // Backend returns AccountStateResponse, convert to AccountState
-      const data = response.data
-      return {
-        account_id: data.account_id?.toString() || address,
-        owner: data.address 
-          ? `0x${Array.from(data.address).map((b: number) => b.toString(16).padStart(2, '0')).join('')}`
-          : address,
-        balances: (data.balances || []).map((b: any) => ({
-          asset_id: b.asset_id,
-          chain_id: b.chain_id,
-          amount: b.amount?.toString() || '0',
-        })),
-        nonce: data.nonce || 0,
-      }
-    } catch (error: any) {
-      console.log('❌ api.getAccountState error:', error)
-      console.log('Error response:', error.response)
-      console.log('Error status:', error.response?.status)
-      throw error
+    const response = await apiClient.get(`/api/v1/account/${address}`)
+    // Backend returns AccountStateResponse, convert to AccountState
+    const data = response.data
+    return {
+      account_id: data.account_id?.toString() || address,
+      owner: data.address
+        ? `0x${Array.from(data.address).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
+        : address,
+      balances: (data.balances || []).map((b: any) => ({
+        asset_id: b.asset_id,
+        chain_id: b.chain_id,
+        amount: b.amount?.toString() || '0',
+      })),
+      nonce: data.nonce || 0,
     }
   },
 
@@ -134,10 +122,10 @@ export const api = {
       deals: data.deals.map((deal: any) => ({
         ...deal,
         maker: Array.isArray(deal.maker)
-          ? `0x${Array.from(deal.maker).map((b: number) => b.toString(16).padStart(2, '0')).join('')}`
+          ? `0x${Array.from(deal.maker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
           : deal.maker,
         taker: deal.taker && Array.isArray(deal.taker)
-          ? `0x${Array.from(deal.taker).map((b: number) => b.toString(16).padStart(2, '0')).join('')}`
+          ? `0x${Array.from(deal.taker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
           : deal.taker,
       })),
     }
@@ -150,10 +138,10 @@ export const api = {
     return {
       ...data,
       maker: Array.isArray(data.maker)
-        ? `0x${Array.from(data.maker).map((b: number) => b.toString(16).padStart(2, '0')).join('')}`
+        ? `0x${Array.from(data.maker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
         : data.maker,
       taker: data.taker && Array.isArray(data.taker)
-        ? `0x${Array.from(data.taker).map((b: number) => b.toString(16).padStart(2, '0')).join('')}`
+        ? `0x${Array.from(data.taker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
         : data.taker,
     }
   },

@@ -1,28 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: #09090B;
+  color: #A1A1AA;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Silver gradient text utility */
+.text-silver-gradient {
+  background: linear-gradient(135deg, #E2E8F0, #CBD5E1, #94A3B8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Silver gradient button */
+.btn-silver {
+  background: linear-gradient(135deg, #E2E8F0, #CBD5E1, #94A3B8);
+  color: #09090B;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 13px;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.btn-silver:hover {
+  opacity: 0.9;
+}
+.btn-silver:active {
+  transform: scale(0.98);
+}
+.btn-silver:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Outline button */
+.btn-outline {
+  background: transparent;
+  border: 1px solid #1C1C22;
+  color: #A1A1AA;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 13px;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-outline:hover {
+  border-color: #3F3F46;
+  color: #E2E8F0;
+}
+
+/* Danger button */
+.btn-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* Form inputs */
+input, select, textarea {
+  background: #09090B !important;
+  border: 1px solid #1C1C22 !important;
+  color: #FAFAFA !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none !important;
+  border-color: #94A3B8 !important;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.2) !important;
+}
+input::placeholder {
+  color: #3F3F46 !important;
+}
+
+/* Select arrow fix for dark theme */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717A' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding-right: 36px !important;
+}
+
+select option {
+  background: #0F0F12;
+  color: #FAFAFA;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #09090B;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272A;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3F3F46;
+}
