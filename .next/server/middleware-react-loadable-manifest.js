@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST='{"app/withdrawals/page.tsx -> @/services/api":{"id":8223,"files":[]}}';
