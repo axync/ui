@@ -40,7 +40,7 @@ export default function DealDetails() {
 
   const { address, accountState, walletInstalled, refreshAccountState } = useWallet()
 
-  const loadDeal = useCallback(async () => {
+  const loadDeal = useCallback(async (retries = 0) => {
     if (!dealId) return
     setLoading(true)
     setError(null)
@@ -48,14 +48,21 @@ export default function DealDetails() {
       const dealData = await api.getDealDetails(parseInt(dealId))
       setDeal(dealData)
     } catch (err: any) {
-      setError(parseWalletError(err))
+      // If deal not found and we have retries left, wait and try again
+      // (deal may still be processing by the sequencer)
+      const is404 = err?.response?.status === 404 || err?.message?.includes('404') || err?.message?.includes('not found')
+      if (is404 && retries < 5) {
+        setTimeout(() => loadDeal(retries + 1), 2000)
+        return
+      }
+      setError(is404 ? 'Deal is being processed. Please wait or refresh the page.' : parseWalletError(err))
     } finally {
       setLoading(false)
     }
   }, [dealId])
 
   useEffect(() => {
-    if (dealId) loadDeal()
+    if (dealId) loadDeal(0)
   }, [dealId, loadDeal])
 
   const handleAcceptDeal = async () => {
@@ -185,7 +192,7 @@ export default function DealDetails() {
               <span className="text-danger text-xl">&#x26A0;</span>
             </div>
             <p className="text-danger text-sm">{error || 'Deal not found'}</p>
-            <button onClick={loadDeal} className="btn-outline text-xs">
+            <button onClick={() => loadDeal(0)} className="btn-outline text-xs">
               Try Again
             </button>
           </div>
