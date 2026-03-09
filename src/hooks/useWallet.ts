@@ -82,68 +82,43 @@ export function useWallet(): UseWalletResult {
     }
   }, [address, loadAccountState])
 
-  // Detect connected accounts on mount
+  // Detect connected accounts on mount + poll for changes
+  // (avoids provider.on() which crashes with some wallet extensions)
   useEffect(() => {
     const provider = getProvider()
     if (!provider) return
 
-    let handleAccountsChanged: ((accounts: string[]) => void) | null = null
+    let lastAccount: string | null = null
 
-    try {
-      provider
-        .request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
-          if (accounts.length > 0) {
-            setAddress(accounts[0])
-            loadAccountState(accounts[0])
-          }
-        })
-        .catch(() => {})
+    const checkAccounts = async () => {
+      const accounts = await safeRequest('eth_accounts')
+      if (!accounts) return
 
-      handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setAddress(accounts[0])
-          loadAccountState(accounts[0])
+      const current = accounts.length > 0 ? accounts[0] : null
+      if (current !== lastAccount) {
+        lastAccount = current
+        if (current) {
+          setAddress(current)
+          loadAccountState(current)
         } else {
           setAddress(null)
           setAccountState(null)
         }
       }
-
-      provider.on('accountsChanged', handleAccountsChanged)
-    } catch {
-      // Wallet extension compatibility issue (Brave, Phantom, etc.)
     }
 
-    // Also listen for our custom accountsChanged event (from WalletConnect)
-    const handleCustomEvent = () => {
-      try {
-        provider
-          .request({ method: 'eth_accounts' })
-          .then((accounts: string[]) => {
-            if (accounts.length > 0) {
-              setAddress(accounts[0])
-              loadAccountState(accounts[0])
-            } else {
-              setAddress(null)
-              setAccountState(null)
-            }
-          })
-          .catch(() => {})
-      } catch {
-        // ignore
-      }
-    }
+    // Initial check
+    checkAccounts()
+
+    // Poll every 2s for account changes (MetaMask account switch)
+    const interval = setInterval(checkAccounts, 2000)
+
+    // Also listen for our custom event (from WalletConnect connect/disconnect)
+    const handleCustomEvent = () => checkAccounts()
     window.addEventListener('accountsChanged', handleCustomEvent)
 
     return () => {
-      try {
-        if (handleAccountsChanged) {
-          provider.removeListener('accountsChanged', handleAccountsChanged)
-        }
-      } catch {
-        // ignore cleanup errors
-      }
+      clearInterval(interval)
       window.removeEventListener('accountsChanged', handleCustomEvent)
     }
   }, [loadAccountState])

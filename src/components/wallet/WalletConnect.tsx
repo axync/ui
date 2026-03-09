@@ -16,39 +16,34 @@ export default function WalletConnect() {
     setWalletInstalled(hasWallet)
     if (!hasWallet || !provider) return
 
-    let handleAccountsChanged: ((accounts: string[]) => void) | null = null
+    let lastAccount: string | null = null
 
-    try {
-      provider
-        .request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
-          if (accounts.length > 0) {
-            setAddress(accounts[0])
-          }
-        })
-        .catch(() => {})
-
-      handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setAddress(accounts[0])
-        } else {
-          setAddress(null)
-        }
-      }
-
-      provider.on('accountsChanged', handleAccountsChanged)
-    } catch {
-      // Some wallets don't support .on() — ignore
-    }
-
-    return () => {
+    const checkAccounts = async () => {
       try {
-        if (handleAccountsChanged) {
-          provider.removeListener('accountsChanged', handleAccountsChanged)
+        const accounts = await provider.request({ method: 'eth_accounts' })
+        const current = accounts.length > 0 ? accounts[0] : null
+        if (current !== lastAccount) {
+          lastAccount = current
+          setAddress(current)
         }
       } catch {
-        // Ignore cleanup errors
+        // ignore
       }
+    }
+
+    // Initial check
+    checkAccounts()
+
+    // Poll for account changes (avoids provider.on which crashes some wallets)
+    const interval = setInterval(checkAccounts, 2000)
+
+    // Listen for our custom event (connect/disconnect dispatches this)
+    const handleCustomEvent = () => checkAccounts()
+    window.addEventListener('accountsChanged', handleCustomEvent)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('accountsChanged', handleCustomEvent)
     }
   }, [])
 
