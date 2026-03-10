@@ -8,7 +8,7 @@ import { useWallet } from '@/hooks/useWallet'
 import { ethers } from 'ethers'
 import { parseAmount, signTransactionCorrect, formatAmount } from '@/utils/transactions'
 import { parseWalletError } from '@/utils/walletErrors'
-import { ASSETS, AVAILABLE_CHAINS, DEFAULTS, getDepositContract, getChainName } from '@/constants/config'
+import { ASSETS, AVAILABLE_CHAINS, DEFAULTS, getVaultContract, getChainName } from '@/constants/config'
 
 export default function CreateDeal() {
   const router = useRouter()
@@ -79,16 +79,16 @@ export default function CreateDeal() {
 
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
-      const depositContract = getDepositContract(chainIdBaseNum)
+      const vaultContract = getVaultContract(chainIdBaseNum)
 
-      if (!depositContract || !ethers.isAddress(depositContract)) {
-        setError(`Deposit contract not configured for ${getChainName(chainIdBaseNum)}.`)
+      if (!vaultContract || !ethers.isAddress(vaultContract)) {
+        setError(`Vault contract not configured for ${getChainName(chainIdBaseNum)}.`)
         setLoading(false)
         return
       }
 
       const contract = new ethers.Contract(
-        depositContract,
+        vaultContract,
         [
           'function deposit(uint256 assetId, uint256 amount) external',
           'function depositNative(uint256 assetId) external payable',

@@ -15,9 +15,9 @@ import {
   ASSETS,
   AVAILABLE_CHAINS,
   DEFAULTS,
-  WITHDRAWAL_CONTRACT_ABI,
+  VAULT_CONTRACT_ABI,
   getChainName,
-  getWithdrawalContract,
+  getVaultContract,
   getChainHex,
 } from '@/constants/config'
 
@@ -136,10 +136,10 @@ export default function Withdrawals() {
 
     try {
       const chainIdNum = parseInt(chainId)
-      const withdrawalContractAddr = getWithdrawalContract(chainIdNum)
+      const vaultContractAddr = getVaultContract(chainIdNum)
 
-      if (!withdrawalContractAddr) {
-        setError(`No withdrawal contract found for ${getChainName(chainIdNum)}.`)
+      if (!vaultContractAddr) {
+        setError(`No vault contract found for ${getChainName(chainIdNum)}.`)
         setStep('ready_to_claim')
         setLoading(false)
         return
@@ -157,15 +157,15 @@ export default function Withdrawals() {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
 
-      // Connect to WithdrawalContract
-      const withdrawalContract = new ethers.Contract(
-        withdrawalContractAddr,
-        WITHDRAWAL_CONTRACT_ABI,
+      // Connect to AxyncVault
+      const vaultContract = new ethers.Contract(
+        vaultContractAddr,
+        VAULT_CONTRACT_ABI,
         signer
       )
 
       // Read current withdrawals root from contract
-      const withdrawalsRoot = await withdrawalContract.withdrawalsRoot()
+      const withdrawalsRoot = await vaultContract.withdrawalsRoot()
 
       if (withdrawalsRoot === ethers.ZeroHash) {
         setError('Withdrawal system is not yet initialized. Please try again later or contact support.')
@@ -196,7 +196,7 @@ export default function Withdrawals() {
       const merkleProof = ethers.hexlify(ethers.randomBytes(64))
       const zkProof = ethers.hexlify(ethers.randomBytes(32))
 
-      const tx = await withdrawalContract.withdraw(
+      const tx = await vaultContract.withdraw(
         withdrawalData,
         merkleProof,
         nullifier,
