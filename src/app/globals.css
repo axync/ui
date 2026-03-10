@@ -123,3 +123,82 @@ select option {
 ::-webkit-scrollbar-thumb:hover {
   background: #52525B;
 }
+
+/* ========== Landing Page ========== */
+
+/* Hero gradient text */
+.text-gradient-hero {
+  background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 45%, #60A5FA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass card */
+.glass {
+  background: rgba(17, 17, 24, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(42, 42, 56, 0.6);
+}
+
+/* Animated background orbs */
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(40px, -30px) scale(1.05); }
+  50% { transform: translate(-25px, 35px) scale(0.95); }
+  75% { transform: translate(30px, 15px) scale(1.03); }
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  animation: orb-drift 25s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Scroll indicator bounce */
+@keyframes scroll-hint {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* Grid background pattern */
+.grid-pattern {
+  background-image:
+    linear-gradient(rgba(42,42,56,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42,42,56,0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* Section gradient divider */
+.section-glow {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(96, 165, 250, 0.25) 50%, transparent 100%);
+}
+
+/* Feature card hover glow */
+.card-hover-glow {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover-glow:hover {
+  border-color: rgba(96, 165, 250, 0.2);
+  box-shadow: 0 0 40px -12px rgba(96, 165, 250, 0.1);
+}
+
+/* Smooth section transitions */
+.landing-section {
+  position: relative;
+}
+.landing-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  max-width: 600px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(42, 42, 56, 0.5), transparent);
+}
