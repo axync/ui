@@ -123,10 +123,20 @@ export default function CreateDeal() {
       }
       await api.submitTransaction(depositRequest)
 
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Poll until nonce increments (deposit processed by sequencer)
+      const expectedNonce = nonce + 1
+      for (let attempt = 0; attempt < 15; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        const state = await api.getAccountState(address)
+        if (state.nonce >= expectedNonce) {
+          nonce = state.nonce
+          break
+        }
+        if (attempt === 14) {
+          throw new Error('Deposit is taking longer than expected. Please try again.')
+        }
+      }
       await refreshAccountState()
-      const updatedState = await api.getAccountState(address)
-      nonce = updatedState.nonce
 
       const dealIdNum = parseInt(dealId)
       const chainIdQuoteNum = parseInt(chainIdQuote)
