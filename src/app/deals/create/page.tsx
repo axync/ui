@@ -26,7 +26,6 @@ export default function CreateDeal() {
   const [amountBase, setAmountBase] = useState<string>('')
   const [priceQuotePerBase, setPriceQuotePerBase] = useState<string>(DEFAULTS.PRICE_RATE)
 
-  // Refresh account state when base chain changes
   useEffect(() => {
     if (address && chainIdBase) {
       refreshAccountState()
@@ -69,7 +68,6 @@ export default function CreateDeal() {
     try {
       const chainIdBaseNum = parseInt(chainIdBase)
 
-      // Switch to the correct chain
       const switched = await switchToChain(chainIdBaseNum)
       if (!switched) {
         setError(`Please switch to ${getChainName(chainIdBaseNum)} in your wallet to proceed.`)
@@ -123,7 +121,6 @@ export default function CreateDeal() {
       }
       await api.submitTransaction(depositRequest)
 
-      // Poll until nonce increments (deposit processed by sequencer)
       const expectedNonce = nonce + 1
       for (let attempt = 0; attempt < 15; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 1000))
@@ -176,7 +173,6 @@ export default function CreateDeal() {
 
       await api.submitTransaction(dealRequest)
       await refreshAccountState()
-      // Small delay so sequencer can process before the deal page loads
       await new Promise(resolve => setTimeout(resolve, 1500))
       router.push(`/deals/${dealId}`)
     } catch (err: any) {
@@ -198,12 +194,10 @@ export default function CreateDeal() {
       const required = formatAmount(parseAmount(amountBase))
       const current = formatAmount(getCurrentBalance())
       const chainName = getChainName(parseInt(chainIdBase))
-      // Show deposit info in the error area instead of confirm()
       setError(
         `Insufficient balance: ${current} ETH available on ${chainName}, but ${required} ETH required. ` +
         `A deposit will be made automatically before creating the deal.`
       )
-      // Still proceed with deposit + create
       await handleDepositAndCreateDeal()
       return
     }
@@ -255,7 +249,6 @@ export default function CreateDeal() {
 
       await api.submitTransaction(submitRequest)
       await refreshAccountState()
-      // Small delay so sequencer can process before the deal page loads
       await new Promise(resolve => setTimeout(resolve, 1500))
       router.push(`/deals/${dealId}`)
     } catch (err: any) {
@@ -268,17 +261,17 @@ export default function CreateDeal() {
   return (
     <Layout>
       <div className="max-w-xl mx-auto">
-        <div className="mb-8">
-          <h1 className="font-heading text-2xl font-bold text-bright">New Deal</h1>
-          <p className="text-sm text-dim mt-1">Create a cross-chain settlement deal</p>
+        <div className="mb-10">
+          <h1 className="font-heading text-3xl font-bold text-bright tracking-tight">New Deal</h1>
+          <p className="text-sm text-dim mt-1.5">Create a cross-chain settlement deal</p>
         </div>
 
         {!walletInstalled ? (
-          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
-            <div className="w-12 h-12 mx-auto rounded-full bg-warning/10 flex items-center justify-center">
-              <span className="text-warning text-xl">!</span>
+          <div className="bg-surface rounded-2xl p-10 text-center space-y-4 shadow-elevation-1">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-warning/10 flex items-center justify-center">
+              <span className="text-warning text-2xl">!</span>
             </div>
-            <p className="text-bright font-heading font-semibold">No wallet detected</p>
+            <p className="text-bright font-heading font-semibold text-lg">No wallet detected</p>
             <p className="text-dim text-sm">
               Install MetaMask or another Web3 wallet to use Axync.
             </p>
@@ -286,31 +279,31 @@ export default function CreateDeal() {
               href="https://metamask.io/download/"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-outline inline-block text-xs mt-2"
+              className="btn-outline inline-block text-sm mt-2"
             >
               Install MetaMask
             </a>
           </div>
         ) : !address ? (
-          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
-            <div className="w-12 h-12 mx-auto rounded-full bg-elevated flex items-center justify-center">
-              <span className="text-dim text-xl">&#x1F50C;</span>
+          <div className="bg-surface rounded-2xl p-10 text-center space-y-4 shadow-elevation-1">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-elevated flex items-center justify-center">
+              <span className="text-dim text-2xl">&#x1F50C;</span>
             </div>
-            <p className="text-bright font-heading font-semibold">Wallet not connected</p>
+            <p className="text-bright font-heading font-semibold text-lg">Wallet not connected</p>
             <p className="text-dim text-sm">
               Click &quot;Connect Wallet&quot; in the top right to create a deal.
             </p>
           </div>
         ) : (
-          <div className="bg-surface border border-edge rounded-2xl p-6">
+          <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
             {error && (
-              <div className="mb-6 p-4 bg-danger/5 border border-danger/20 rounded-xl flex items-start gap-3">
+              <div className="mb-8 p-4 bg-danger/5 rounded-xl flex items-start gap-3">
                 <span className="text-danger text-sm mt-0.5 shrink-0">&#x26A0;</span>
                 <div className="flex-1">
                   <p className="text-danger text-sm">{error}</p>
                   <button
                     onClick={() => setError(null)}
-                    className="text-danger/60 text-xs mt-1 hover:text-danger transition-colors"
+                    className="text-danger/60 text-xs mt-1.5 hover:text-danger transition-colors font-medium"
                   >
                     Dismiss
                   </button>
@@ -318,10 +311,10 @@ export default function CreateDeal() {
               </div>
             )}
 
-            <div className="space-y-5">
+            <div className="space-y-6">
               {/* Visibility */}
               <div>
-                <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
+                <label className="block text-sm font-medium text-dim mb-2">
                   Visibility
                 </label>
                 <select
@@ -335,7 +328,7 @@ export default function CreateDeal() {
 
               {visibility === 'private' && (
                 <div>
-                  <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
+                  <label className="block text-sm font-medium text-dim mb-2">
                     Taker Address
                   </label>
                   <input
@@ -343,17 +336,18 @@ export default function CreateDeal() {
                     value={taker}
                     onChange={(e) => setTaker(e.target.value)}
                     placeholder="0x..."
+                    className="font-mono"
                   />
                   {taker && !ethers.isAddress(taker) && (
-                    <p className="text-warning text-xs font-mono mt-1.5">Invalid address format</p>
+                    <p className="text-warning text-xs mt-2">Invalid address format</p>
                   )}
                 </div>
               )}
 
               {/* Chains */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
+                  <label className="block text-sm font-medium text-dim mb-2">
                     From Chain
                   </label>
                   <select value={chainIdBase} onChange={(e) => setChainIdBase(e.target.value)}>
@@ -363,7 +357,7 @@ export default function CreateDeal() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
+                  <label className="block text-sm font-medium text-dim mb-2">
                     To Chain
                   </label>
                   <select value={chainIdQuote} onChange={(e) => setChainIdQuote(e.target.value)}>
@@ -376,7 +370,7 @@ export default function CreateDeal() {
 
               {/* Amount */}
               <div>
-                <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
+                <label className="block text-sm font-medium text-dim mb-2">
                   Amount ({ASSETS.ETH.symbol})
                 </label>
                 <input
@@ -386,29 +380,29 @@ export default function CreateDeal() {
                   placeholder="0.0"
                 />
                 {accountState && amountBase && (
-                  <div className="mt-2">
+                  <div className="mt-2.5">
                     {isBalanceSufficient() ? (
-                      <span className="text-success text-xs font-mono">
+                      <span className="text-success text-xs">
                         Balance: {formatAmount(getCurrentBalance())} available on {getChainName(parseInt(chainIdBase))}
                       </span>
                     ) : (
-                      <span className="text-warning text-xs font-mono">
+                      <span className="text-warning text-xs">
                         {formatAmount(getCurrentBalance())} available on {getChainName(parseInt(chainIdBase))}. Deposit will be made automatically.
                       </span>
                     )}
                   </div>
                 )}
                 {walletLoading && !accountState && (
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2.5 flex items-center gap-2">
                     <div className="w-3 h-3 border border-dim border-t-transparent rounded-full animate-spin" />
-                    <span className="text-dim text-xs font-mono">Loading balance...</span>
+                    <span className="text-dim text-xs">Loading balance...</span>
                   </div>
                 )}
               </div>
 
               {/* Rate */}
               <div>
-                <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
+                <label className="block text-sm font-medium text-dim mb-2">
                   Exchange Rate (multiplier)
                 </label>
                 <input
@@ -418,14 +412,14 @@ export default function CreateDeal() {
                   placeholder="1"
                 />
                 {amountBase && priceQuotePerBase && (
-                  <p className="text-dim text-xs font-mono mt-1.5">
+                  <p className="text-dim text-xs mt-2">
                     Taker pays: {(parseFloat(amountBase || '0') * parseFloat(priceQuotePerBase || '1')).toFixed(6)} ETH on {getChainName(parseInt(chainIdQuote))}
                   </p>
                 )}
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => router.back()}
                   className="btn-outline flex-1"

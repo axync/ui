@@ -23,7 +23,7 @@ function StatusBadge({ status }: { status: string }) {
     Expired: 'bg-muted/20 text-dim',
   }
   return (
-    <span className={`font-mono text-[10px] px-2.5 py-1 rounded-md ${styles[status] || styles.Expired}`}>
+    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${styles[status] || styles.Expired}`}>
       {status}
     </span>
   )
@@ -49,8 +49,6 @@ export default function DealDetails() {
       const dealData = await api.getDealDetails(parseInt(dealId))
       setDeal(dealData)
     } catch (err: any) {
-      // If deal not found and we have retries left, wait and try again
-      // (deal may still be processing by the sequencer)
       const is404 = err?.response?.status === 404 || err?.message?.includes('404') || err?.message?.includes('not found')
       if (is404 && retries < 5) {
         setTimeout(() => loadDeal(retries + 1), 2000)
@@ -94,7 +92,6 @@ export default function DealDetails() {
 
       let nonce = accountState.nonce
 
-      // Auto-deposit if balance insufficient
       if (currentBalance < amountQuote) {
         const depositAmount = amountQuote - currentBalance
         const chainId = deal.chain_id_quote
@@ -144,7 +141,6 @@ export default function DealDetails() {
           signature: depositSignature,
         })
 
-        // Poll until nonce increments (deposit processed by sequencer)
         const expectedNonce = nonce + 1
         for (let attempt = 0; attempt < 15; attempt++) {
           await new Promise(resolve => setTimeout(resolve, 1000))
@@ -160,7 +156,6 @@ export default function DealDetails() {
         await refreshAccountState()
       }
 
-      // Accept the deal
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       const payload = { dealId: deal.deal_id, amount: null }
@@ -231,8 +226,8 @@ export default function DealDetails() {
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-3xl mx-auto py-12 text-center">
-          <div className="w-8 h-8 mx-auto border-2 border-silver-lo border-t-transparent rounded-full animate-spin mb-4" />
+        <div className="max-w-3xl mx-auto py-16 text-center">
+          <div className="w-8 h-8 mx-auto border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
           <p className="text-dim">Loading deal...</p>
         </div>
       </Layout>
@@ -243,15 +238,15 @@ export default function DealDetails() {
     return (
       <Layout>
         <div className="max-w-3xl mx-auto">
-          <button onClick={() => router.back()} className="text-dim hover:text-silver-lo text-sm mb-4 transition-colors">
+          <button onClick={() => router.back()} className="text-muted hover:text-dim text-sm mb-6 transition-colors font-medium">
             &larr; Back to Deals
           </button>
-          <div className="bg-danger/5 border border-danger/20 rounded-2xl p-6 text-center space-y-3">
-            <div className="w-12 h-12 mx-auto rounded-full bg-danger/10 flex items-center justify-center">
-              <span className="text-danger text-xl">&#x26A0;</span>
+          <div className="bg-danger/5 rounded-2xl p-8 text-center space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-danger/10 flex items-center justify-center">
+              <span className="text-danger text-2xl">&#x26A0;</span>
             </div>
             <p className="text-danger text-sm">{error || 'Deal not found'}</p>
-            <button onClick={() => loadDeal(0)} className="btn-outline text-xs">
+            <button onClick={() => loadDeal(0)} className="btn-outline text-sm">
               Try Again
             </button>
           </div>
@@ -269,79 +264,81 @@ export default function DealDetails() {
     <Layout>
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <button onClick={() => router.back()} className="text-dim hover:text-silver-lo text-sm mb-4 transition-colors">
+        <div className="mb-8">
+          <button onClick={() => router.back()} className="text-muted hover:text-dim text-sm mb-6 transition-colors font-medium">
             &larr; Back to Deals
           </button>
           <div className="flex items-center gap-3">
-            <h1 className="font-heading text-2xl font-bold text-bright">Deal #{deal.deal_id}</h1>
+            <h1 className="font-heading text-3xl font-bold text-bright tracking-tight">Deal #{deal.deal_id}</h1>
             <StatusBadge status={deal.status} />
             {deal.visibility === 'Direct' && (
-              <span className="font-mono text-[10px] px-2.5 py-1 rounded-md bg-info/10 text-info">Direct</span>
+              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-info/10 text-info">Direct</span>
             )}
           </div>
         </div>
 
-        <div className="bg-surface border border-edge rounded-2xl p-6 space-y-6">
-          {/* Summary */}
-          <div className="bg-base border border-edge rounded-xl p-5">
+        <div className="space-y-6">
+          {/* Summary Card */}
+          <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-mono text-[9px] tracking-[3px] uppercase text-silver-lo">Amount</span>
-                <div className="font-heading text-2xl font-bold text-bright mt-1">
+                <span className="text-xs font-medium text-muted uppercase tracking-wider">Amount</span>
+                <div className="font-heading text-3xl font-bold text-bright mt-1">
                   {formatAmount(BigInt(deal.amount_base))} ETH
                 </div>
                 {deal.amount_remaining != null && BigInt(deal.amount_remaining) > 0n && BigInt(deal.amount_remaining) !== BigInt(deal.amount_base) && (
-                  <div className="font-mono text-xs text-dim mt-1">
+                  <div className="text-sm text-dim mt-1">
                     Remaining: {formatAmount(BigInt(deal.amount_remaining))}
                   </div>
                 )}
               </div>
               <div className="text-right">
-                <span className="font-mono text-[9px] tracking-[3px] uppercase text-silver-lo">Rate</span>
-                <div className="font-heading text-xl font-semibold text-bright mt-1">{deal.price_quote_per_base}:1</div>
+                <span className="text-xs font-medium text-muted uppercase tracking-wider">Rate</span>
+                <div className="font-heading text-2xl font-semibold text-bright mt-1">{deal.price_quote_per_base}:1</div>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-edge">
-              <span className="font-mono text-xs text-silver-lo">
+            <div className="mt-6 pt-6 border-t border-edge/40">
+              <span className="text-sm text-dim">
                 {getChainName(deal.chain_id_base)} &rarr; {getChainName(deal.chain_id_quote)}
               </span>
             </div>
           </div>
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className="font-mono text-[9px] tracking-[3px] uppercase text-muted">Maker</span>
-              <p className="font-mono text-sm text-silver-lo mt-1">{formatAddress(deal.maker)}</p>
-            </div>
-            {deal.taker && (
+          {/* Details */}
+          <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
+            <div className="grid grid-cols-2 gap-6">
               <div>
-                <span className="font-mono text-[9px] tracking-[3px] uppercase text-muted">Taker</span>
-                <p className="font-mono text-sm text-silver-lo mt-1">{formatAddress(deal.taker)}</p>
+                <span className="text-xs font-medium text-muted uppercase tracking-wider">Maker</span>
+                <p className="font-mono text-sm text-dim mt-1.5">{formatAddress(deal.maker)}</p>
               </div>
-            )}
-            <div>
-              <span className="font-mono text-[9px] tracking-[3px] uppercase text-muted">Base Asset</span>
-              <p className="text-sm text-bright mt-1">ETH (ID: {deal.asset_base})</p>
-              <p className="font-mono text-[10px] text-dim">{getChainName(deal.chain_id_base)}</p>
-            </div>
-            <div>
-              <span className="font-mono text-[9px] tracking-[3px] uppercase text-muted">Quote Asset</span>
-              <p className="text-sm text-bright mt-1">ETH (ID: {deal.asset_quote})</p>
-              <p className="font-mono text-[10px] text-dim">{getChainName(deal.chain_id_quote)}</p>
+              {deal.taker && (
+                <div>
+                  <span className="text-xs font-medium text-muted uppercase tracking-wider">Taker</span>
+                  <p className="font-mono text-sm text-dim mt-1.5">{formatAddress(deal.taker)}</p>
+                </div>
+              )}
+              <div>
+                <span className="text-xs font-medium text-muted uppercase tracking-wider">Base Asset</span>
+                <p className="text-sm text-bright mt-1.5">ETH (ID: {deal.asset_base})</p>
+                <p className="text-xs text-muted mt-0.5">{getChainName(deal.chain_id_base)}</p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-muted uppercase tracking-wider">Quote Asset</span>
+                <p className="text-sm text-bright mt-1.5">ETH (ID: {deal.asset_quote})</p>
+                <p className="text-xs text-muted mt-0.5">{getChainName(deal.chain_id_quote)}</p>
+              </div>
             </div>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="p-4 bg-danger/5 border border-danger/20 rounded-xl flex items-start gap-3">
+            <div className="p-5 bg-danger/5 rounded-2xl flex items-start gap-3">
               <span className="text-danger text-sm mt-0.5">&#x26A0;</span>
               <div>
                 <p className="text-danger text-sm">{error}</p>
                 <button
                   onClick={() => setError(null)}
-                  className="text-danger/60 text-xs mt-1 hover:text-danger transition-colors"
+                  className="text-danger/60 text-xs mt-1.5 hover:text-danger transition-colors font-medium"
                 >
                   Dismiss
                 </button>
@@ -351,13 +348,13 @@ export default function DealDetails() {
 
           {/* Cancel Confirmation */}
           {confirmCancel && (
-            <div className="p-4 bg-warning/5 border border-warning/20 rounded-xl">
-              <p className="text-warning text-sm mb-3">Are you sure you want to cancel this deal? Your deposited funds will be returned to your balance.</p>
-              <div className="flex gap-2">
-                <button onClick={handleCancelDeal} className="btn-danger text-xs">
+            <div className="p-5 bg-warning/5 rounded-2xl">
+              <p className="text-warning text-sm mb-4">Are you sure you want to cancel this deal? Your deposited funds will be returned to your balance.</p>
+              <div className="flex gap-3">
+                <button onClick={handleCancelDeal} className="btn-danger text-sm">
                   Yes, Cancel Deal
                 </button>
-                <button onClick={() => setConfirmCancel(false)} className="btn-outline text-xs">
+                <button onClick={() => setConfirmCancel(false)} className="btn-outline text-sm">
                   Keep Deal
                 </button>
               </div>
@@ -365,33 +362,31 @@ export default function DealDetails() {
           )}
 
           {/* Actions */}
-          <div className="pt-4 border-t border-edge">
+          <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
             {!walletInstalled ? (
-              <div className="p-4 bg-elevated border border-edge rounded-xl text-center space-y-2">
+              <div className="text-center space-y-2">
                 <p className="text-dim text-sm">No wallet detected.</p>
                 <a
                   href="https://metamask.io/download/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-info text-xs hover:underline"
+                  className="text-accent text-xs hover:underline"
                 >
                   Install MetaMask to interact with deals
                 </a>
               </div>
             ) : !address ? (
-              <div className="p-4 bg-elevated border border-edge rounded-xl">
-                <p className="text-dim text-sm">Connect your wallet to interact with this deal.</p>
-              </div>
+              <p className="text-dim text-sm">Connect your wallet to interact with this deal.</p>
             ) : !accountState ? (
-              <div className="p-4 bg-elevated border border-edge rounded-xl flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <div className="w-4 h-4 border-2 border-dim border-t-transparent rounded-full animate-spin" />
                 <p className="text-dim text-sm">Loading account...</p>
               </div>
             ) : deal.status === 'Settled' ? (
-              <div className="space-y-3">
-                <div className="p-4 bg-success/5 border border-success/20 rounded-xl">
-                  <p className="text-success text-sm font-semibold mb-1">Deal Settled ✓</p>
-                  <p className="text-dim text-xs">
+              <div className="space-y-5">
+                <div className="p-5 bg-success/5 rounded-xl">
+                  <p className="text-success text-sm font-semibold mb-1">Deal Settled</p>
+                  <p className="text-dim text-xs leading-relaxed">
                     {isMaker
                       ? `You received ${formatAmount(BigInt(deal.amount_remaining || deal.amount_base))} ETH on ${getChainName(deal.chain_id_quote)} from the taker.`
                       : `You sent ${formatAmount(BigInt(deal.amount_remaining || deal.amount_base))} ETH on ${getChainName(deal.chain_id_quote)} to the maker.`
@@ -409,9 +404,9 @@ export default function DealDetails() {
                 </div>
               </div>
             ) : deal.status === 'Cancelled' ? (
-              <div className="p-4 bg-danger/5 border border-danger/20 rounded-xl">
+              <div className="p-5 bg-danger/5 rounded-xl">
                 <p className="text-danger text-sm font-semibold mb-1">Deal Cancelled</p>
-                <p className="text-dim text-xs">
+                <p className="text-dim text-xs leading-relaxed">
                   This deal was cancelled. Deposited funds have been returned to the maker&apos;s balance.
                 </p>
               </div>

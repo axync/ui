@@ -15,7 +15,7 @@ function StatusBadge({ status }: { status: string }) {
     Expired: 'bg-muted/20 text-dim',
   }
   return (
-    <span className={`font-mono text-[10px] px-2.5 py-1 rounded-md ${styles[status] || styles.Expired}`}>
+    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${styles[status] || styles.Expired}`}>
       {status}
     </span>
   )
@@ -58,10 +58,10 @@ export default function Deals() {
     <Layout>
       <div>
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-10">
           <div>
-            <h1 className="font-heading text-2xl font-bold text-bright">Deals</h1>
-            <p className="text-sm text-dim mt-1">Browse and manage cross-chain settlements</p>
+            <h1 className="font-heading text-3xl font-bold text-bright tracking-tight">Deals</h1>
+            <p className="text-sm text-dim mt-1.5">Browse and manage cross-chain settlements</p>
           </div>
           <Link href="/deals/create" className="btn-silver">
             New Deal
@@ -69,15 +69,15 @@ export default function Deals() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-1 mb-6 bg-surface border border-edge rounded-xl p-1 w-fit">
+        <div className="flex gap-1 mb-8 bg-surface rounded-xl p-1 w-fit shadow-elevation-1">
           {filters.map((f) => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-body transition-colors ${
+              className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
                 filter === f.key
-                  ? 'bg-elevated text-bright'
-                  : 'text-dim hover:text-silver-lo'
+                  ? 'bg-elevated text-bright shadow-elevation-1'
+                  : 'text-muted hover:text-dim'
               }`}
             >
               {f.label}
@@ -87,54 +87,55 @@ export default function Deals() {
 
         {/* Content */}
         {loading ? (
-          <div className="bg-surface border border-edge rounded-2xl p-12 text-center">
+          <div className="bg-surface rounded-2xl p-16 text-center shadow-elevation-1">
+            <div className="w-6 h-6 mx-auto border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-dim">Loading deals...</p>
           </div>
         ) : error ? (
-          <div className="bg-danger/5 border border-danger/20 rounded-2xl p-6">
+          <div className="bg-danger/5 rounded-2xl p-8">
             <p className="text-danger text-sm">{error}</p>
           </div>
         ) : deals.length === 0 ? (
-          <div className="bg-surface border border-edge rounded-2xl p-12 text-center">
-            <p className="text-dim mb-4">No deals found</p>
-            <Link href="/deals/create" className="btn-outline text-xs">Create your first deal</Link>
+          <div className="bg-surface rounded-2xl p-16 text-center shadow-elevation-1">
+            <p className="text-dim mb-5 text-base">No deals found</p>
+            <Link href="/deals/create" className="btn-outline text-sm">Create your first deal</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {deals.map((deal) => (
               <Link
                 key={deal.deal_id}
                 href={`/deals/${deal.deal_id}`}
-                className="bg-surface border border-edge rounded-2xl p-5 hover:border-muted transition-all group"
+                className="bg-surface rounded-2xl p-6 shadow-elevation-1 hover:shadow-elevation-2 hover:-translate-y-0.5 transition-all duration-200 group"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <span className="font-mono text-xs text-dim">#{deal.deal_id}</span>
+                <div className="flex justify-between items-start mb-5">
+                  <span className="text-xs text-muted font-medium">#{deal.deal_id}</span>
                   <StatusBadge status={deal.status} />
                 </div>
 
-                <div className="mb-4">
-                  <div className="font-heading text-lg font-semibold text-bright">
+                <div className="mb-5">
+                  <div className="font-heading text-xl font-semibold text-bright">
                     {formatAmount(BigInt(deal.amount_base))} ETH
                   </div>
-                  <div className="font-mono text-xs text-silver-lo mt-1">
+                  <div className="text-sm text-dim mt-1.5">
                     {getChainName(deal.chain_id_base)} &rarr; {getChainName(deal.chain_id_quote)}
                   </div>
                 </div>
 
-                <div className="space-y-1.5 text-xs">
+                <div className="space-y-2 text-sm pt-5 border-t border-edge/50">
                   <div className="flex justify-between">
-                    <span className="text-dim">Maker</span>
-                    <span className="font-mono text-silver-lo">{formatAddress(deal.maker)}</span>
+                    <span className="text-muted">Maker</span>
+                    <span className="font-mono text-xs text-dim">{formatAddress(deal.maker)}</span>
                   </div>
                   {deal.taker && (
                     <div className="flex justify-between">
-                      <span className="text-dim">Taker</span>
-                      <span className="font-mono text-silver-lo">{formatAddress(deal.taker)}</span>
+                      <span className="text-muted">Taker</span>
+                      <span className="font-mono text-xs text-dim">{formatAddress(deal.taker)}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-dim">Rate</span>
-                    <span className="font-mono text-silver-lo">{deal.price_quote_per_base}:1</span>
+                    <span className="text-muted">Rate</span>
+                    <span className="text-dim">{deal.price_quote_per_base}:1</span>
                   </div>
                 </div>
               </Link>
