@@ -13,7 +13,7 @@ import {
 } from '@/utils/transactions'
 import { parseWalletError } from '@/utils/walletErrors'
 import { ethers } from 'ethers'
-import { getChainName } from '@/constants/config'
+import { getChainName, getVaultContract, ASSETS } from '@/constants/config'
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -39,7 +39,7 @@ export default function DealDetails() {
   const [processing, setProcessing] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
 
-  const { address, accountState, walletInstalled, refreshAccountState } = useWallet()
+  const { address, accountState, walletInstalled, refreshAccountState, switchToChain } = useWallet()
 
   const loadDeal = useCallback(async (retries = 0) => {
     if (!dealId) return
@@ -81,42 +81,90 @@ export default function DealDetails() {
       return
     }
 
-    const amountToFill = BigInt(deal.amount_remaining)
-    const amountQuote = amountToFill * BigInt(deal.price_quote_per_base)
-    const requiredBalance = accountState.balances.find(
-      (b: any) => b.asset_id === deal.asset_quote && b.chain_id === deal.chain_id_quote
-    )
-    const currentBalance = requiredBalance ? BigInt(requiredBalance.amount) : BigInt(0)
-
-    if (currentBalance < amountQuote) {
-      const chainName = getChainName(deal.chain_id_quote)
-      setError(
-        `Insufficient balance. You need ${formatAmount(amountQuote)} ETH on ${chainName} to accept this deal. ` +
-        `You currently have ${formatAmount(currentBalance)} ETH. Please deposit first.`
-      )
-      return
-    }
-
     setProcessing(true)
     setError(null)
 
     try {
+      const amountToFill = BigInt(deal.amount_remaining)
+      const amountQuote = amountToFill * BigInt(deal.price_quote_per_base)
+      const requiredBalance = accountState.balances.find(
+        (b: any) => b.asset_id === deal.asset_quote && b.chain_id === deal.chain_id_quote
+      )
+      const currentBalance = requiredBalance ? BigInt(requiredBalance.amount) : BigInt(0)
+
+      let nonce = accountState.nonce
+
+      // Auto-deposit if balance insufficient
+      if (currentBalance < amountQuote) {
+        const depositAmount = amountQuote - currentBalance
+        const chainId = deal.chain_id_quote
+
+        const switched = await switchToChain(chainId)
+        if (!switched) {
+          setError(`Please switch to ${getChainName(chainId)} in your wallet.`)
+          setProcessing(false)
+          return
+        }
+
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const signer = await provider.getSigner()
+        const vaultContract = getVaultContract(chainId)
+
+        if (!vaultContract || !ethers.isAddress(vaultContract)) {
+          setError(`Vault contract not configured for ${getChainName(chainId)}.`)
+          setProcessing(false)
+          return
+        }
+
+        const contract = new ethers.Contract(
+          vaultContract,
+          ['function depositNative(uint256 assetId) external payable'],
+          signer
+        )
+
+        const tx = await contract.depositNative(ASSETS.ETH.id, { value: depositAmount })
+        const receipt = await tx.wait()
+
+        const depositPayload = {
+          txHash: receipt.hash,
+          account: address,
+          assetId: ASSETS.ETH.id,
+          amount: depositAmount.toString(),
+          chainId: chainId,
+        }
+        const depositSignature = await signTransactionCorrect(signer, address, nonce, 'Deposit', depositPayload)
+        await api.submitTransaction({
+          kind: 'Deposit',
+          tx_hash: receipt.hash,
+          account: address,
+          asset_id: ASSETS.ETH.id,
+          amount: depositAmount.toString(),
+          chain_id: chainId,
+          nonce: nonce,
+          signature: depositSignature,
+        })
+
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        await refreshAccountState()
+        const updatedState = await api.getAccountState(address)
+        nonce = updatedState.nonce
+      }
+
+      // Accept the deal
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
-      const nonce = accountState.nonce
       const payload = { dealId: deal.deal_id, amount: null }
       const signature = await signTransactionCorrect(signer, address, nonce, 'AcceptDeal', payload)
 
-      const submitRequest = {
+      await api.submitTransaction({
         kind: 'AcceptDeal',
         from: address,
         deal_id: deal.deal_id,
         amount: null,
         nonce: nonce,
         signature: signature,
-      }
+      })
 
-      await api.submitTransaction(submitRequest)
       await loadDeal()
       await refreshAccountState()
     } catch (err: any) {
