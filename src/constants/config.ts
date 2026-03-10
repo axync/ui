@@ -21,14 +21,14 @@ export const CHAINS = {
   ETHEREUM_SEPOLIA: {
     id: 11155111,
     name: 'Ethereum Sepolia',
-    vaultContract: process.env.NEXT_PUBLIC_ETHEREUM_VAULT_CONTRACT || '0x4E059D94012d494fBcFfC89C2E6ee4Ea853cA92F',
-    verifierContract: process.env.NEXT_PUBLIC_ETHEREUM_VERIFIER_CONTRACT || '0x6eaE425A7830349F7716b8AaF8ff5e76E5c6d6a2',
+    vaultContract: process.env.NEXT_PUBLIC_ETHEREUM_VAULT_CONTRACT || '0xC0659E7a7b4E81AFe607A7aECd57A7E8E23Ba164',
+    verifierContract: process.env.NEXT_PUBLIC_ETHEREUM_VERIFIER_CONTRACT || '0x53743f261a8941Edb71973F1Ae98C69D7a6dBDda',
   },
   BASE_SEPOLIA: {
     id: 84532,
     name: 'Base Sepolia',
-    vaultContract: process.env.NEXT_PUBLIC_BASE_VAULT_CONTRACT || '0x807d220AC80c59aC9F8C6C3d86211F04D80b9c53',
-    verifierContract: process.env.NEXT_PUBLIC_BASE_VERIFIER_CONTRACT || '0x53743f261a8941Edb71973F1Ae98C69D7a6dBDda',
+    vaultContract: process.env.NEXT_PUBLIC_BASE_VAULT_CONTRACT || '0xE047A68aaB75C479aF21bA34F5fE931c13ed770a',
+    verifierContract: process.env.NEXT_PUBLIC_BASE_VERIFIER_CONTRACT || '0x07504966EF2899064886d7cc5Afd815F3f404C7B',
   },
 } as const
 
