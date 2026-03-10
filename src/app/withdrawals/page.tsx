@@ -231,16 +231,18 @@ export default function Withdrawals() {
     refreshAccountState()
   }
 
+  const stepIndex = step === 'form' ? 0 : step === 'sequencer_pending' ? 1 : step === 'ready_to_claim' || step === 'claiming' ? 2 : 3
+
   return (
     <Layout>
       <div className="max-w-xl mx-auto">
         <div className="mb-8">
-          <h1 className="font-heading text-2xl font-bold text-bright">Withdraw</h1>
-          <p className="text-sm text-dim mt-1">Withdraw settled assets back to their native chain</p>
+          <h1 className="font-heading text-3xl font-bold text-bright tracking-tight">Withdraw</h1>
+          <p className="text-sm text-dim mt-1.5">Withdraw settled assets back to their native chain</p>
         </div>
 
         {!walletInstalled ? (
-          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
+          <div className="bg-surface rounded-2xl p-8 text-center space-y-3 shadow-elevation-1">
             <div className="w-12 h-12 mx-auto rounded-full bg-warning/10 flex items-center justify-center">
               <span className="text-warning text-xl">!</span>
             </div>
@@ -258,7 +260,7 @@ export default function Withdrawals() {
             </a>
           </div>
         ) : !address ? (
-          <div className="bg-surface border border-edge rounded-2xl p-8 text-center space-y-3">
+          <div className="bg-surface rounded-2xl p-8 text-center space-y-3 shadow-elevation-1">
             <div className="w-12 h-12 mx-auto rounded-full bg-elevated flex items-center justify-center">
               <span className="text-dim text-xl">&#x1F50C;</span>
             </div>
@@ -268,48 +270,47 @@ export default function Withdrawals() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Step Indicator */}
-            <div className="bg-surface border border-edge rounded-2xl p-4">
-              <div className="flex items-center gap-2">
-                {['Submit', 'Block', 'Claim'].map((label, i) => {
-                  const stepIndex = step === 'form' ? 0 : step === 'sequencer_pending' ? 1 : step === 'ready_to_claim' ? 2 : step === 'claiming' ? 2 : 3
-                  const isActive = i === stepIndex
-                  const isDone = i < stepIndex || step === 'done'
-                  return (
-                    <div key={label} className="flex items-center gap-2 flex-1">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-mono font-bold ${
-                        isDone ? 'bg-success text-base' : isActive ? 'bg-silver-lo text-base' : 'bg-elevated text-dim'
+            <div className="flex items-center gap-0 px-2">
+              {['Submit', 'Block', 'Claim'].map((label, i) => {
+                const isActive = i === stepIndex
+                const isDone = i < stepIndex || step === 'done'
+                return (
+                  <div key={label} className="flex items-center flex-1">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
+                        isDone ? 'bg-success/20 text-success' : isActive ? 'bg-accent/20 text-accent' : 'bg-elevated text-muted'
                       }`}>
                         {isDone ? '✓' : i + 1}
                       </div>
-                      <span className={`font-mono text-[10px] uppercase tracking-wider ${isActive ? 'text-bright' : 'text-dim'}`}>
+                      <span className={`text-xs font-medium ${isActive ? 'text-bright' : isDone ? 'text-dim' : 'text-muted'}`}>
                         {label}
                       </span>
-                      {i < 2 && <div className="flex-1 h-px bg-edge" />}
                     </div>
-                  )
-                })}
-              </div>
+                    {i < 2 && <div className={`flex-1 h-px mx-3 ${isDone ? 'bg-success/30' : 'bg-edge'}`} />}
+                  </div>
+                )
+              })}
             </div>
 
             {/* Balances Overview */}
             {accountState && accountState.balances.length > 0 && step === 'form' && (
-              <div className="bg-surface border border-edge rounded-2xl p-5">
-                <span className="font-mono text-[9px] tracking-[3px] uppercase text-silver-lo mb-4 block">
+              <div className="bg-surface rounded-2xl p-6 shadow-elevation-1">
+                <span className="text-xs font-medium text-muted uppercase tracking-wider mb-4 block">
                   Available Balances
                 </span>
                 <div className="space-y-2">
                   {accountState.balances.map((balance, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between bg-base border border-edge rounded-xl px-4 py-3"
+                      className="flex items-center justify-between bg-elevated/40 rounded-xl px-5 py-3.5"
                     >
                       <div className="flex items-center gap-3">
                         <span className="font-heading text-sm font-semibold text-bright">
                           {ASSETS.ETH.symbol}
                         </span>
-                        <span className="font-mono text-[10px] text-dim">
+                        <span className="text-xs text-muted">
                           {getChainName(balance.chain_id)}
                         </span>
                       </div>
@@ -324,13 +325,13 @@ export default function Withdrawals() {
 
             {/* Status Messages */}
             {error && (
-              <div className="p-4 bg-danger/5 border border-danger/20 rounded-xl flex items-start gap-3">
+              <div className="p-5 bg-danger/5 rounded-2xl flex items-start gap-3">
                 <span className="text-danger text-sm mt-0.5">&#x26A0;</span>
                 <p className="text-danger text-sm">{error}</p>
               </div>
             )}
             {success && (
-              <div className="p-4 bg-success/5 border border-success/20 rounded-xl flex items-start gap-3">
+              <div className="p-5 bg-success/5 rounded-2xl flex items-start gap-3">
                 <span className="text-success text-sm mt-0.5">&#x2713;</span>
                 <p className="text-success text-sm whitespace-pre-line">{success}</p>
               </div>
@@ -338,14 +339,12 @@ export default function Withdrawals() {
 
             {/* Step 1: Form */}
             {step === 'form' && (
-              <div className="bg-surface border border-edge rounded-2xl p-6">
-                <span className="font-mono text-[9px] tracking-[3px] uppercase text-silver-lo mb-5 block">
-                  Step 1 — Submit Withdrawal
-                </span>
+              <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
+                <h2 className="text-sm font-medium text-dim mb-6">Submit Withdrawal</h2>
 
                 <div className="space-y-5">
                   <div>
-                    <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
+                    <label className="block text-sm font-medium text-dim mb-2">
                       Chain
                     </label>
                     <select value={chainId} onChange={(e) => setChainId(e.target.value)}>
@@ -354,14 +353,14 @@ export default function Withdrawals() {
                       ))}
                     </select>
                     {accountState && (
-                      <p className="font-mono text-xs text-dim mt-1.5">
+                      <p className="text-xs text-muted mt-2">
                         Available: {formatAmount(getBalance(parseInt(chainId)))} {ASSETS.ETH.symbol}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
+                    <label className="block text-sm font-medium text-dim mb-2">
                       Amount ({ASSETS.ETH.symbol})
                     </label>
                     <input
@@ -373,8 +372,9 @@ export default function Withdrawals() {
                   </div>
 
                   <div>
-                    <label className="block font-mono text-[10px] tracking-[2px] uppercase text-silver-lo mb-2">
-                      Recipient (optional, defaults to your address)
+                    <label className="block text-sm font-medium text-dim mb-2">
+                      Recipient
+                      <span className="text-muted font-normal ml-1">(optional, defaults to your address)</span>
                     </label>
                     <input
                       type="text"
@@ -404,8 +404,8 @@ export default function Withdrawals() {
 
             {/* Step 2: Waiting for block */}
             {step === 'sequencer_pending' && (
-              <div className="bg-surface border border-edge rounded-2xl p-8 text-center">
-                <div className="mb-4">
+              <div className="bg-surface rounded-2xl p-10 text-center shadow-elevation-1">
+                <div className="mb-5">
                   <div className="w-12 h-12 mx-auto border-2 border-warning border-t-transparent rounded-full animate-spin" />
                 </div>
                 <p className="font-heading text-lg text-bright">Waiting for block inclusion...</p>
@@ -415,29 +415,27 @@ export default function Withdrawals() {
 
             {/* Step 3: Claim on-chain */}
             {(step === 'ready_to_claim' || step === 'claiming') && (
-              <div className="bg-surface border border-edge rounded-2xl p-6">
-                <span className="font-mono text-[9px] tracking-[3px] uppercase text-silver-lo mb-5 block">
-                  Step 2 — Claim On-Chain
-                </span>
+              <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
+                <h2 className="text-sm font-medium text-dim mb-6">Claim On-Chain</h2>
 
-                <div className="bg-base border border-edge rounded-xl p-4 mb-5">
-                  <div className="space-y-2">
+                <div className="bg-elevated/40 rounded-xl p-5 mb-6">
+                  <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="font-mono text-[10px] text-dim uppercase">Amount</span>
-                      <span className="font-mono text-sm text-bright">{amount} {ASSETS.ETH.symbol}</span>
+                      <span className="text-xs text-muted">Amount</span>
+                      <span className="text-sm text-bright font-medium">{amount} {ASSETS.ETH.symbol}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-mono text-[10px] text-dim uppercase">Chain</span>
-                      <span className="font-mono text-sm text-bright">{getChainName(parseInt(chainId))}</span>
+                      <span className="text-xs text-muted">Chain</span>
+                      <span className="text-sm text-bright font-medium">{getChainName(parseInt(chainId))}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-mono text-[10px] text-dim uppercase">Recipient</span>
+                      <span className="text-xs text-muted">Recipient</span>
                       <span className="font-mono text-sm text-bright">{formatAddress(to || address!)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 bg-info/5 border border-info/20 rounded-xl mb-5">
+                <div className="p-4 bg-info/5 rounded-xl mb-6">
                   <p className="text-info text-xs leading-relaxed">
                     This will switch your wallet to {getChainName(parseInt(chainId))} and call the withdrawal contract to release your ETH.
                   </p>
@@ -462,8 +460,8 @@ export default function Withdrawals() {
 
             {/* Step 4: Done */}
             {step === 'done' && (
-              <div className="bg-surface border border-edge rounded-2xl p-6 text-center">
-                <div className="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center mb-4">
+              <div className="bg-surface rounded-2xl p-10 text-center shadow-elevation-1">
+                <div className="w-16 h-16 mx-auto rounded-full bg-success/10 flex items-center justify-center mb-5">
                   <span className="text-success text-3xl">&#x2713;</span>
                 </div>
                 <p className="font-heading text-lg text-bright mb-2">Withdrawal Complete!</p>

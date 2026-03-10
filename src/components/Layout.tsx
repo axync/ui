@@ -43,33 +43,33 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-base">
-      {/* Top Navigation */}
-      <nav className="border-b border-edge bg-surface/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-14">
-            {/* Left: Logo + Nav */}
-            <div className="flex items-center gap-8">
+      <nav className="sticky top-0 z-50 bg-base/90 backdrop-blur-xl shadow-elevation-2">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center gap-10">
               <Link href="/" className="flex items-center gap-2.5">
                 <AxyncLogo />
-                <span className="font-heading font-bold text-bright text-lg">Axync</span>
+                <span className="font-heading font-semibold text-bright text-lg tracking-tight">Axync</span>
               </Link>
               <div className="hidden sm:flex items-center gap-1">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-body transition-colors ${
+                    className={`relative px-4 py-2 text-sm font-body font-medium transition-colors ${
                       isActive(link.href)
-                        ? 'text-bright bg-elevated'
-                        : 'text-dim hover:text-silver-lo'
+                        ? 'text-bright'
+                        : 'text-muted hover:text-dim'
                     }`}
                   >
                     {link.label}
+                    {isActive(link.href) && (
+                      <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-accent rounded-full" />
+                    )}
                   </Link>
                 ))}
               </div>
             </div>
-            {/* Right: Wallet */}
             <div className="flex items-center">
               <WalletConnect />
             </div>
@@ -77,8 +77,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-6xl mx-auto py-10 px-6">
         {children}
       </main>
     </div>

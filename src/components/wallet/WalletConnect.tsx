@@ -10,7 +10,6 @@ export default function WalletConnect() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    // Check if wallet is installed
     const provider = window.ethereum
     const hasWallet = !!provider
     setWalletInstalled(hasWallet)
@@ -31,13 +30,10 @@ export default function WalletConnect() {
       }
     }
 
-    // Initial check
     checkAccounts()
 
-    // Poll for account changes (avoids provider.on which crashes some wallets)
     const interval = setInterval(checkAccounts, 2000)
 
-    // Listen for our custom event (connect/disconnect dispatches this)
     const handleCustomEvent = () => checkAccounts()
     window.addEventListener('accountsChanged', handleCustomEvent)
 
@@ -75,7 +71,6 @@ export default function WalletConnect() {
         window.dispatchEvent(new Event('accountsChanged'))
       }
     } catch (error: any) {
-      // Only show errors that aren't user rejections — silently handle
       if (error.code !== 4001) {
         console.error('Wallet connection error:', error)
       }
@@ -108,16 +103,15 @@ export default function WalletConnect() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
   }
 
-  // Wallet is connected — show address
   if (address) {
     return (
       <div className="flex items-center gap-3">
-        <span className="font-mono text-xs text-silver-lo bg-elevated px-3 py-1.5 rounded-lg border border-edge">
+        <span className="font-mono text-xs text-silver-lo bg-elevated/60 px-3.5 py-2 rounded-xl">
           {formatAddress(address)}
         </span>
         <button
           onClick={disconnect}
-          className="text-xs text-dim hover:text-danger transition-colors"
+          className="text-xs text-muted hover:text-danger transition-colors font-medium"
         >
           Disconnect
         </button>
@@ -125,26 +119,24 @@ export default function WalletConnect() {
     )
   }
 
-  // No wallet extension installed
   if (!walletInstalled) {
     return (
       <a
         href="https://metamask.io/download/"
         target="_blank"
         rel="noopener noreferrer"
-        className="btn-outline text-xs"
+        className="btn-outline text-xs !py-2 !px-4"
       >
         Install Wallet
       </a>
     )
   }
 
-  // Wallet installed but not connected
   return (
     <button
       onClick={connectWallet}
       disabled={isConnecting}
-      className="btn-outline text-xs"
+      className="btn-outline text-xs !py-2 !px-4"
     >
       {isConnecting ? (
         <span className="flex items-center gap-2">
