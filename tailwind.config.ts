@@ -28,7 +28,7 @@ const config: Config = {
         info: '#60A5FA',
       },
       fontFamily: {
-        heading: ['Outfit', 'sans-serif'],
+        heading: ['Space Grotesk', 'sans-serif'],
         body: ['Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
