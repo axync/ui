@@ -22,34 +22,6 @@ body {
 
 /* ─── Buttons ─── */
 
-.btn-primary {
-  background: linear-gradient(135deg, #F1F5F9, #E2E8F0, #CBD5E1);
-  color: #08080C;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 600;
-  border-radius: 12px;
-  padding: 12px 28px;
-  font-size: 14px;
-  letter-spacing: -0.01em;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-.btn-primary:hover {
-  opacity: 0.92;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-  transform: translateY(-1px);
-}
-.btn-primary:active {
-  transform: translateY(0) scale(0.98);
-}
-.btn-primary:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Keep old class name working */
 .btn-silver {
   background: linear-gradient(135deg, #F1F5F9, #E2E8F0, #CBD5E1);
   color: #08080C;
