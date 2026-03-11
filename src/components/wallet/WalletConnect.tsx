@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { formatAddress } from '@/utils/transactions'
 
 export default function WalletConnect() {
   const [address, setAddress] = useState<string | null>(null)
@@ -97,10 +98,6 @@ export default function WalletConnect() {
       setAddress(null)
       window.dispatchEvent(new Event('accountsChanged'))
     }
-  }
-
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
   }
 
   if (address) {

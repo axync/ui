@@ -55,25 +55,6 @@ export interface Deal {
   is_cross_chain?: boolean
 }
 
-export interface Block {
-  id: number
-  timestamp: number
-  transactions: any[]
-  state_root: string
-  withdrawals_root: string
-  block_proof: string
-}
-
-export interface QueueStatus {
-  queue_length: number
-  max_queue_size: number
-}
-
-export interface Chain {
-  chain_id: number
-  name: string
-}
-
 // API functions
 export const api = {
   // Health check
@@ -99,13 +80,6 @@ export const api = {
       })),
       nonce: data.nonce || 0,
     }
-  },
-
-  async getAccountBalance(address: string, assetId: number): Promise<Balance> {
-    const response = await apiClient.get(
-      `/api/v1/account/${address}/balance/${assetId}`
-    )
-    return response.data
   },
 
   // Deal endpoints
@@ -144,35 +118,6 @@ export const api = {
         ? `0x${Array.from(data.taker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
         : data.taker,
     }
-  },
-
-  // Block endpoints
-  async getBlockInfo(blockId: number): Promise<Block> {
-    const response = await apiClient.get(`/api/v1/block/${blockId}`)
-    return response.data
-  },
-
-  // Queue status
-  async getQueueStatus(): Promise<QueueStatus> {
-    const response = await apiClient.get('/api/v1/queue/status')
-    return response.data
-  },
-
-  // Supported chains
-  async getSupportedChains(): Promise<Chain[]> {
-    const response = await apiClient.get('/api/v1/chains')
-    return response.data
-  },
-
-  // JSON-RPC
-  async jsonRpc(method: string, params: any[] = []) {
-    const response = await apiClient.post('/jsonrpc', {
-      jsonrpc: '2.0',
-      method,
-      params,
-      id: 1,
-    })
-    return response.data
   },
 
   // Submit transaction
