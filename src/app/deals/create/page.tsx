@@ -15,6 +15,7 @@ export default function CreateDeal() {
   const { address, accountState, loading: walletLoading, walletInstalled, refreshAccountState, switchToChain } = useWallet()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const [dealId] = useState<string>(() => String(Date.now()))
   const [visibility, setVisibility] = useState<'public' | 'private'>('public')
@@ -258,190 +259,252 @@ export default function CreateDeal() {
     }
   }
 
+  const receiveAmount = amountBase && priceQuotePerBase
+    ? (parseFloat(amountBase || '0') * parseFloat(priceQuotePerBase || '1')).toFixed(6)
+    : '0'
+
   return (
     <Layout>
-      <div className="max-w-xl mx-auto">
-        <div className="mb-10">
-          <h1 className="font-heading text-3xl font-bold text-bright tracking-tight">New Deal</h1>
-          <p className="text-sm text-dim mt-1.5">Create a cross-chain settlement deal</p>
-        </div>
+      <div className="max-w-[460px] mx-auto">
+        <h2 className="text-lg font-bold text-center mb-5 fi">New Deal</h2>
 
         {!walletInstalled ? (
-          <div className="bg-surface rounded-2xl p-10 text-center space-y-4 shadow-elevation-1">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-warning/10 flex items-center justify-center">
-              <span className="text-warning text-2xl">!</span>
-            </div>
-            <p className="text-bright font-heading font-semibold text-lg">No wallet detected</p>
-            <p className="text-dim text-sm">
-              Install MetaMask or another Web3 wallet to use Axync.
-            </p>
-            <a
-              href="https://metamask.io/download/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-outline inline-block text-sm mt-2"
-            >
+          <div className="card text-center !p-10 space-y-4">
+            <div className="w-12 h-12 mx-auto rounded-xl bg-amber/10 flex items-center justify-center text-amber text-xl">!</div>
+            <p className="text-tx font-semibold">No wallet detected</p>
+            <p className="text-sm text-tx3">Install MetaMask or another Web3 wallet to use Axync.</p>
+            <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm inline-flex">
               Install MetaMask
             </a>
           </div>
         ) : !address ? (
-          <div className="bg-surface rounded-2xl p-10 text-center space-y-4 shadow-elevation-1">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-elevated flex items-center justify-center">
-              <span className="text-dim text-2xl">&#x1F50C;</span>
-            </div>
-            <p className="text-bright font-heading font-semibold text-lg">Wallet not connected</p>
-            <p className="text-dim text-sm">
-              Click &quot;Connect Wallet&quot; in the top right to create a deal.
-            </p>
+          <div className="card text-center !p-10 space-y-4">
+            <div className="w-12 h-12 mx-auto rounded-xl bg-bg3 flex items-center justify-center text-tx3 text-xl">&#x1F50C;</div>
+            <p className="text-tx font-semibold">Wallet not connected</p>
+            <p className="text-sm text-tx3">Click &quot;Connect Wallet&quot; in the top right to create a deal.</p>
           </div>
         ) : (
-          <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
+          <div className="card fi1 !p-5">
             {error && (
-              <div className="mb-8 p-4 bg-danger/5 rounded-xl flex items-start gap-3">
-                <span className="text-danger text-sm mt-0.5 shrink-0">&#x26A0;</span>
+              <div className="mb-4 p-3 bg-red/5 rounded-xl flex items-start gap-2.5 border border-red/10">
+                <span className="text-red text-sm mt-0.5 shrink-0">&#x26A0;</span>
                 <div className="flex-1">
-                  <p className="text-danger text-sm">{error}</p>
-                  <button
-                    onClick={() => setError(null)}
-                    className="text-danger/60 text-xs mt-1.5 hover:text-danger transition-colors font-medium"
-                  >
+                  <p className="text-red text-xs">{error}</p>
+                  <button onClick={() => setError(null)} className="text-red/60 text-[10px] mt-1 hover:text-red font-medium">
                     Dismiss
                   </button>
                 </div>
               </div>
             )}
 
-            <div className="space-y-6">
-              {/* Visibility */}
-              <div>
-                <label className="block text-sm font-medium text-dim mb-2">
-                  Visibility
-                </label>
-                <select
-                  value={visibility}
-                  onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
-                >
-                  <option value="public">Public</option>
-                  <option value="private">Direct (Private)</option>
-                </select>
+            {/* YOU SEND */}
+            <div className="p-3.5 rounded-xl bg-bg border border-brd mb-[-6px] relative z-[2]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] text-tx3 font-medium">You Send</span>
+                <span className="text-[10px] text-tx3">
+                  Balance: <span className="text-tx2 font-mono">{formatAmount(getCurrentBalance())} ETH</span>
+                </span>
               </div>
-
-              {visibility === 'private' && (
-                <div>
-                  <label className="block text-sm font-medium text-dim mb-2">
-                    Taker Address
-                  </label>
-                  <input
-                    type="text"
-                    value={taker}
-                    onChange={(e) => setTaker(e.target.value)}
-                    placeholder="0x..."
-                    className="font-mono"
-                  />
-                  {taker && !ethers.isAddress(taker) && (
-                    <p className="text-warning text-xs mt-2">Invalid address format</p>
-                  )}
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-brd">
+                  <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-bold bg-[rgba(98,126,234,0.15)] text-[#627EEA]">&Xi;</div>
+                  <span className="text-[13px] font-semibold">ETH</span>
                 </div>
-              )}
-
-              {/* Chains */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-dim mb-2">
-                    From Chain
-                  </label>
-                  <select value={chainIdBase} onChange={(e) => setChainIdBase(e.target.value)}>
-                    {AVAILABLE_CHAINS.map((chain) => (
-                      <option key={chain.id} value={chain.id}>{chain.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-dim mb-2">
-                    To Chain
-                  </label>
-                  <select value={chainIdQuote} onChange={(e) => setChainIdQuote(e.target.value)}>
-                    {AVAILABLE_CHAINS.map((chain) => (
-                      <option key={chain.id} value={chain.id}>{chain.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Amount */}
-              <div>
-                <label className="block text-sm font-medium text-dim mb-2">
-                  Amount ({ASSETS.ETH.symbol})
-                </label>
                 <input
                   type="text"
                   value={amountBase}
                   onChange={(e) => setAmountBase(e.target.value)}
                   placeholder="0.0"
+                  className="flex-1 bg-transparent border-none outline-none text-right text-[22px] font-bold text-tx w-0"
+                  style={{ padding: 0 }}
                 />
-                {accountState && amountBase && (
-                  <div className="mt-2.5">
-                    {isBalanceSufficient() ? (
-                      <span className="text-success text-xs">
-                        Balance: {formatAmount(getCurrentBalance())} available on {getChainName(parseInt(chainIdBase))}
-                      </span>
-                    ) : (
-                      <span className="text-warning text-xs">
-                        {formatAmount(getCurrentBalance())} available on {getChainName(parseInt(chainIdBase))}. Deposit will be made automatically.
-                      </span>
-                    )}
-                  </div>
-                )}
-                {walletLoading && !accountState && (
-                  <div className="mt-2.5 flex items-center gap-2">
-                    <div className="w-3 h-3 border border-dim border-t-transparent rounded-full animate-spin" />
-                    <span className="text-dim text-xs">Loading balance...</span>
-                  </div>
-                )}
               </div>
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex gap-[3px]">
+                  {AVAILABLE_CHAINS.map((chain) => (
+                    <button
+                      key={chain.id}
+                      onClick={() => setChainIdBase(String(chain.id))}
+                      className={`flex items-center gap-[5px] py-[3px] px-[7px] rounded-[5px] border text-[9px] font-medium transition-all ${
+                        String(chain.id) === chainIdBase
+                          ? 'border-lav/30 bg-lav/[0.06] text-lav'
+                          : 'border-brd text-tx2 hover:text-tx'
+                      }`}
+                    >
+                      <span className="w-[5px] h-[5px] rounded-full" style={{ background: chain.id === 11155111 ? '#627EEA' : '#0052FF' }} />
+                      {chain.name.replace(' Sepolia', '')}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  {['25%', '50%', 'MAX'].map((pct) => (
+                    <button
+                      key={pct}
+                      onClick={() => {
+                        const bal = getCurrentBalance()
+                        if (bal === BigInt(0)) return
+                        const multiplier = pct === 'MAX' ? 1 : pct === '50%' ? 0.5 : 0.25
+                        const amount = formatAmount(BigInt(Math.floor(Number(bal) * multiplier)))
+                        setAmountBase(amount)
+                      }}
+                      className={`py-[2px] px-[6px] rounded text-[9px] font-medium border transition-all ${
+                        pct === 'MAX'
+                          ? 'border-lav/20 bg-lav/[0.06] text-lav font-semibold'
+                          : 'border-brd bg-bg2 text-tx3 hover:text-tx2'
+                      }`}
+                    >
+                      {pct}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-              {/* Rate */}
-              <div>
-                <label className="block text-sm font-medium text-dim mb-2">
-                  Exchange Rate (multiplier)
-                </label>
+            {/* Swap Arrow */}
+            <div className="flex justify-center relative z-[3] h-0">
+              <div
+                className="w-9 h-9 rounded-[9px] bg-bg2 border border-brd flex items-center justify-center text-tx2 text-base cursor-pointer hover:border-lav/30 hover:text-lav transition-all"
+                style={{ transform: 'translateY(-50%)' }}
+              >
+                &#8693;
+              </div>
+            </div>
+
+            {/* YOU RECEIVE */}
+            <div className="p-3.5 rounded-xl bg-bg border border-brd relative z-[1]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] text-tx3 font-medium">You Receive</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-brd">
+                  <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-bold bg-[rgba(98,126,234,0.15)] text-[#627EEA]">&Xi;</div>
+                  <span className="text-[13px] font-semibold">ETH</span>
+                </div>
+                <div className="flex-1 text-right text-[22px] font-bold text-tx">
+                  {receiveAmount}
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="flex gap-[3px]">
+                  {AVAILABLE_CHAINS.map((chain) => (
+                    <button
+                      key={chain.id}
+                      onClick={() => setChainIdQuote(String(chain.id))}
+                      className={`flex items-center gap-[5px] py-[3px] px-[7px] rounded-[5px] border text-[9px] font-medium transition-all ${
+                        String(chain.id) === chainIdQuote
+                          ? 'border-lav/30 bg-lav/[0.06] text-lav'
+                          : 'border-brd text-tx2 hover:text-tx'
+                      }`}
+                    >
+                      <span className="w-[5px] h-[5px] rounded-full" style={{ background: chain.id === 11155111 ? '#627EEA' : '#0052FF' }} />
+                      {chain.name.replace(' Sepolia', '')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Rate */}
+            <div className="flex justify-between py-2.5 mt-2.5 border-t border-brd">
+              <span className="text-[11px] text-tx3">Rate</span>
+              <div className="flex items-center gap-1.5">
                 <input
                   type="text"
                   value={priceQuotePerBase}
                   onChange={(e) => setPriceQuotePerBase(e.target.value)}
-                  placeholder="1"
+                  className="w-12 bg-transparent border-none outline-none text-right text-[11px] text-tx2 font-mono"
+                  style={{ padding: 0 }}
                 />
-                {amountBase && priceQuotePerBase && (
-                  <p className="text-dim text-xs mt-2">
-                    Taker pays: {(parseFloat(amountBase || '0') * parseFloat(priceQuotePerBase || '1')).toFixed(6)} ETH on {getChainName(parseInt(chainIdQuote))}
-                  </p>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => router.back()}
-                  className="btn-outline flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateDeal}
-                  disabled={loading}
-                  className="btn-silver flex-1"
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span className="w-4 h-4 border-2 border-base border-t-transparent rounded-full animate-spin" />
-                      Creating...
-                    </span>
-                  ) : (
-                    'Create Deal'
-                  )}
-                </button>
+                <span className="text-[11px] text-tx2 font-mono">: 1</span>
               </div>
             </div>
+
+            {/* Deal Settings */}
+            <div className="border-t border-brd pt-2.5">
+              <button
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                className="flex items-center justify-between w-full"
+              >
+                <span className="text-[11px] text-tx2 font-medium">Deal Settings</span>
+                <span className="text-[9px] text-tx3">{settingsOpen ? '▲' : '▼'}</span>
+              </button>
+              {settingsOpen && (
+                <div className="pt-2.5 space-y-2.5">
+                  <div>
+                    <div className="text-[10px] text-tx3 mb-1.5">Counterparty (optional)</div>
+                    <input
+                      type="text"
+                      value={taker}
+                      onChange={(e) => setTaker(e.target.value)}
+                      placeholder="0x... or ENS"
+                      className="form-input !py-1.5 !px-2.5 !text-[11px] !rounded-lg font-mono"
+                    />
+                    {taker && !ethers.isAddress(taker) && (
+                      <p className="text-amber text-[10px] mt-1">Invalid address</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <div className="text-[10px] text-tx3 mb-1.5">Visibility</div>
+                      <select
+                        value={visibility}
+                        onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
+                        className="form-select !py-1.5 !px-2.5 !text-[11px] !rounded-lg"
+                      >
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-tx2">ZK Proof</span>
+                      <span className="badge badge-lav" style={{ fontSize: '8px', padding: '1px 5px' }}>STARK&rarr;Groth16</span>
+                    </div>
+                    <div className="toggle on">
+                      <div className="toggle-knob" />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Summary */}
+            {amountBase && (
+              <div className="mt-2.5 p-2.5 px-3 rounded-[9px] bg-lav/[0.04] border border-lav/[0.08]">
+                <div className="flex justify-between mb-0.5">
+                  <span className="text-[10px] text-tx3">ZK Verification</span>
+                  <span className="text-[10px] text-green">✓ Enabled</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[10px] text-tx3">Route</span>
+                  <span className="text-[10px] text-tx2">
+                    {getChainName(parseInt(chainIdBase))} &rarr; {getChainName(parseInt(chainIdQuote))}
+                  </span>
+                </div>
+                {!isBalanceSufficient() && amountBase && parseAmount(amountBase) > BigInt(0) && (
+                  <div className="flex justify-between mt-0.5">
+                    <span className="text-[10px] text-tx3">Auto-deposit</span>
+                    <span className="text-[10px] text-amber">Required</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={handleCreateDeal}
+              disabled={loading}
+              className="btn btn-primary btn-lg w-full justify-center mt-3.5"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
+                  Creating...
+                </span>
+              ) : (
+                'Create Deal →'
+              )}
+            </button>
           </div>
         )}
       </div>

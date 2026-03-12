@@ -102,15 +102,17 @@ export default function WalletConnect() {
 
   if (address) {
     return (
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-xs text-silver-lo bg-elevated/60 px-3.5 py-2 rounded-xl">
-          {formatAddress(address)}
-        </span>
+      <div className="flex items-center gap-2">
         <button
           onClick={disconnect}
-          className="text-xs text-muted hover:text-danger transition-colors font-medium"
+          className="py-1.5 px-3.5 rounded-[9px] font-mono text-xs font-medium text-tx cursor-pointer transition-all"
+          style={{
+            background: 'linear-gradient(#12121A, #12121A) padding-box, linear-gradient(135deg, #CCCCFF, #7DD3FC) border-box',
+            border: '1.5px solid transparent',
+          }}
+          title="Click to disconnect"
         >
-          Disconnect
+          {formatAddress(address)}
         </button>
       </div>
     )
@@ -122,7 +124,7 @@ export default function WalletConnect() {
         href="https://metamask.io/download/"
         target="_blank"
         rel="noopener noreferrer"
-        className="btn-outline text-xs !py-2 !px-4"
+        className="btn btn-outline btn-sm"
       >
         Install Wallet
       </a>
@@ -133,11 +135,11 @@ export default function WalletConnect() {
     <button
       onClick={connectWallet}
       disabled={isConnecting}
-      className="btn-outline text-xs !py-2 !px-4"
+      className="btn btn-outline btn-sm"
     >
       {isConnecting ? (
         <span className="flex items-center gap-2">
-          <span className="w-3 h-3 border border-dim border-t-transparent rounded-full animate-spin" />
+          <span className="w-3 h-3 border border-tx3 border-t-transparent rounded-full animate-spin" />
           Connecting...
         </span>
       ) : (

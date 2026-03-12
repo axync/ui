@@ -16,17 +16,13 @@ import { ethers } from 'ethers'
 import { getChainName, getVaultContract, ASSETS } from '@/constants/config'
 
 function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    Pending: 'bg-warning/10 text-warning',
-    Settled: 'bg-success/10 text-success',
-    Cancelled: 'bg-danger/10 text-danger',
-    Expired: 'bg-muted/20 text-dim',
+  const map: Record<string, string> = {
+    Pending: 'badge-amber',
+    Settled: 'badge-green',
+    Cancelled: 'badge-red',
+    Expired: 'badge-red',
   }
-  return (
-    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${styles[status] || styles.Expired}`}>
-      {status}
-    </span>
-  )
+  return <span className={`badge ${map[status] || 'badge-muted'}`}>{status}</span>
 }
 
 export default function DealDetails() {
@@ -227,8 +223,8 @@ export default function DealDetails() {
     return (
       <Layout>
         <div className="max-w-3xl mx-auto py-16 text-center">
-          <div className="w-8 h-8 mx-auto border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-dim">Loading deal...</p>
+          <div className="w-5 h-5 mx-auto border-2 border-lav border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-tx3 text-sm">Loading deal...</p>
         </div>
       </Layout>
     )
@@ -238,17 +234,13 @@ export default function DealDetails() {
     return (
       <Layout>
         <div className="max-w-3xl mx-auto">
-          <button onClick={() => router.back()} className="text-muted hover:text-dim text-sm mb-6 transition-colors font-medium">
+          <button onClick={() => router.back()} className="text-tx3 hover:text-tx2 text-sm mb-6 transition-colors font-medium">
             &larr; Back to Deals
           </button>
-          <div className="bg-danger/5 rounded-2xl p-8 text-center space-y-4">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-danger/10 flex items-center justify-center">
-              <span className="text-danger text-2xl">&#x26A0;</span>
-            </div>
-            <p className="text-danger text-sm">{error || 'Deal not found'}</p>
-            <button onClick={() => loadDeal(0)} className="btn-outline text-sm">
-              Try Again
-            </button>
+          <div className="card text-center !p-10 space-y-4">
+            <div className="w-12 h-12 mx-auto rounded-xl bg-red/10 flex items-center justify-center text-red text-xl">&#x26A0;</div>
+            <p className="text-red text-sm">{error || 'Deal not found'}</p>
+            <button onClick={() => loadDeal(0)} className="btn btn-outline btn-sm">Try Again</button>
           </div>
         </div>
       </Layout>
@@ -264,129 +256,115 @@ export default function DealDetails() {
     <Layout>
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <button onClick={() => router.back()} className="text-muted hover:text-dim text-sm mb-6 transition-colors font-medium">
+        <div className="mb-6 fi">
+          <button onClick={() => router.back()} className="text-tx3 hover:text-tx2 text-sm mb-4 transition-colors font-medium">
             &larr; Back to Deals
           </button>
           <div className="flex items-center gap-3">
-            <h1 className="font-heading text-3xl font-bold text-bright tracking-tight">Deal #{deal.deal_id}</h1>
+            <h2 className="text-xl font-bold">Deal #AX-{String(deal.deal_id).padStart(4, '0')}</h2>
             <StatusBadge status={deal.status} />
-            {deal.visibility === 'Direct' && (
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-info/10 text-info">Direct</span>
-            )}
+            {deal.visibility === 'Direct' && <span className="badge badge-ice">Direct</span>}
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Summary Card */}
-          <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
+          <div className="card card-grad fi1">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs font-medium text-muted uppercase tracking-wider">Amount</span>
-                <div className="font-heading text-3xl font-bold text-bright mt-1">
+                <span className="text-xs font-semibold text-tx3 uppercase tracking-wider">Amount</span>
+                <div className="text-3xl font-bold text-gradient mt-1">
                   {formatAmount(BigInt(deal.amount_base))} ETH
                 </div>
                 {deal.amount_remaining != null && BigInt(deal.amount_remaining) > 0n && BigInt(deal.amount_remaining) !== BigInt(deal.amount_base) && (
-                  <div className="text-sm text-dim mt-1">
+                  <div className="text-sm text-tx2 mt-1">
                     Remaining: {formatAmount(BigInt(deal.amount_remaining))}
                   </div>
                 )}
               </div>
               <div className="text-right">
-                <span className="text-xs font-medium text-muted uppercase tracking-wider">Rate</span>
-                <div className="font-heading text-2xl font-semibold text-bright mt-1">{deal.price_quote_per_base}:1</div>
+                <span className="text-xs font-semibold text-tx3 uppercase tracking-wider">Rate</span>
+                <div className="text-2xl font-semibold text-tx mt-1 font-mono">{deal.price_quote_per_base}:1</div>
               </div>
             </div>
-            <div className="mt-6 pt-6 border-t border-edge/40">
-              <span className="text-sm text-dim">
+            <div className="mt-5 pt-5 border-t border-lav/10 flex items-center gap-2">
+              <span className="w-[7px] h-[7px] rounded-full" style={{ background: deal.chain_id_base === 11155111 ? '#627EEA' : '#0052FF' }} />
+              <span className="text-sm text-tx2">
                 {getChainName(deal.chain_id_base)} &rarr; {getChainName(deal.chain_id_quote)}
               </span>
+              <span className="badge badge-lav ml-auto" style={{ fontSize: '9px' }}>✓ ZK Verified</span>
             </div>
           </div>
 
           {/* Details */}
-          <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
-            <div className="grid grid-cols-2 gap-6">
+          <div className="card fi2">
+            <div className="grid grid-cols-2 gap-5">
               <div>
-                <span className="text-xs font-medium text-muted uppercase tracking-wider">Maker</span>
-                <p className="font-mono text-sm text-dim mt-1.5">{formatAddress(deal.maker)}</p>
+                <span className="text-[10px] font-semibold text-tx3 uppercase tracking-wider">Maker</span>
+                <p className="font-mono text-sm text-tx2 mt-1">{formatAddress(deal.maker)}</p>
               </div>
               {deal.taker && (
                 <div>
-                  <span className="text-xs font-medium text-muted uppercase tracking-wider">Taker</span>
-                  <p className="font-mono text-sm text-dim mt-1.5">{formatAddress(deal.taker)}</p>
+                  <span className="text-[10px] font-semibold text-tx3 uppercase tracking-wider">Taker</span>
+                  <p className="font-mono text-sm text-tx2 mt-1">{formatAddress(deal.taker)}</p>
                 </div>
               )}
               <div>
-                <span className="text-xs font-medium text-muted uppercase tracking-wider">Base Asset</span>
-                <p className="text-sm text-bright mt-1.5">ETH (ID: {deal.asset_base})</p>
-                <p className="text-xs text-muted mt-0.5">{getChainName(deal.chain_id_base)}</p>
+                <span className="text-[10px] font-semibold text-tx3 uppercase tracking-wider">Base Asset</span>
+                <p className="text-sm text-tx mt-1">ETH</p>
+                <p className="text-[10px] text-tx3">{getChainName(deal.chain_id_base)}</p>
               </div>
               <div>
-                <span className="text-xs font-medium text-muted uppercase tracking-wider">Quote Asset</span>
-                <p className="text-sm text-bright mt-1.5">ETH (ID: {deal.asset_quote})</p>
-                <p className="text-xs text-muted mt-0.5">{getChainName(deal.chain_id_quote)}</p>
+                <span className="text-[10px] font-semibold text-tx3 uppercase tracking-wider">Quote Asset</span>
+                <p className="text-sm text-tx mt-1">ETH</p>
+                <p className="text-[10px] text-tx3">{getChainName(deal.chain_id_quote)}</p>
               </div>
             </div>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="p-5 bg-danger/5 rounded-2xl flex items-start gap-3">
-              <span className="text-danger text-sm mt-0.5">&#x26A0;</span>
+            <div className="p-4 bg-red/5 rounded-xl border border-red/10 flex items-start gap-2.5">
+              <span className="text-red text-sm mt-0.5">&#x26A0;</span>
               <div>
-                <p className="text-danger text-sm">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  className="text-danger/60 text-xs mt-1.5 hover:text-danger transition-colors font-medium"
-                >
-                  Dismiss
-                </button>
+                <p className="text-red text-xs">{error}</p>
+                <button onClick={() => setError(null)} className="text-red/60 text-[10px] mt-1 hover:text-red font-medium">Dismiss</button>
               </div>
             </div>
           )}
 
           {/* Cancel Confirmation */}
           {confirmCancel && (
-            <div className="p-5 bg-warning/5 rounded-2xl">
-              <p className="text-warning text-sm mb-4">Are you sure you want to cancel this deal? Your deposited funds will be returned to your balance.</p>
-              <div className="flex gap-3">
-                <button onClick={handleCancelDeal} className="btn-danger text-sm">
-                  Yes, Cancel Deal
-                </button>
-                <button onClick={() => setConfirmCancel(false)} className="btn-outline text-sm">
-                  Keep Deal
-                </button>
+            <div className="p-4 bg-amber/5 rounded-xl border border-amber/10">
+              <p className="text-amber text-xs mb-3">Are you sure you want to cancel this deal? Your deposited funds will be returned to your balance.</p>
+              <div className="flex gap-2">
+                <button onClick={handleCancelDeal} className="btn btn-danger btn-sm">Yes, Cancel Deal</button>
+                <button onClick={() => setConfirmCancel(false)} className="btn btn-outline btn-sm">Keep Deal</button>
               </div>
             </div>
           )}
 
           {/* Actions */}
-          <div className="bg-surface rounded-2xl p-8 shadow-elevation-1">
+          <div className="card fi3">
             {!walletInstalled ? (
               <div className="text-center space-y-2">
-                <p className="text-dim text-sm">No wallet detected.</p>
-                <a
-                  href="https://metamask.io/download/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent text-xs hover:underline"
-                >
+                <p className="text-tx3 text-sm">No wallet detected.</p>
+                <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-lav text-xs hover:underline">
                   Install MetaMask to interact with deals
                 </a>
               </div>
             ) : !address ? (
-              <p className="text-dim text-sm">Connect your wallet to interact with this deal.</p>
+              <p className="text-tx3 text-sm">Connect your wallet to interact with this deal.</p>
             ) : !accountState ? (
               <div className="flex items-center gap-3">
-                <div className="w-4 h-4 border-2 border-dim border-t-transparent rounded-full animate-spin" />
-                <p className="text-dim text-sm">Loading account...</p>
+                <div className="w-4 h-4 border-2 border-tx3 border-t-transparent rounded-full animate-spin" />
+                <p className="text-tx3 text-sm">Loading account...</p>
               </div>
             ) : deal.status === 'Settled' ? (
-              <div className="space-y-5">
-                <div className="p-5 bg-success/5 rounded-xl">
-                  <p className="text-success text-sm font-semibold mb-1">Deal Settled</p>
-                  <p className="text-dim text-xs leading-relaxed">
+              <div className="space-y-4">
+                <div className="p-4 bg-green/5 rounded-xl border border-green/10">
+                  <p className="text-green text-sm font-semibold mb-1">Deal Settled</p>
+                  <p className="text-tx3 text-xs leading-relaxed">
                     {isMaker
                       ? `You received ${formatAmount(BigInt(deal.amount_remaining || deal.amount_base))} ETH on ${getChainName(deal.chain_id_quote)} from the taker.`
                       : `You sent ${formatAmount(BigInt(deal.amount_remaining || deal.amount_base))} ETH on ${getChainName(deal.chain_id_quote)} to the maker.`
@@ -394,29 +372,25 @@ export default function DealDetails() {
                     {' '}You can now withdraw your funds to your wallet.
                   </p>
                 </div>
-                <div className="flex gap-3">
-                  <Link href="/withdrawals" className="btn-silver">
-                    Withdraw Funds
-                  </Link>
-                  <Link href="/account" className="btn-outline">
-                    View Account
-                  </Link>
+                <div className="flex gap-2">
+                  <Link href="/withdrawals" className="btn btn-primary">Withdraw Funds</Link>
+                  <Link href="/account" className="btn btn-outline">View Account</Link>
                 </div>
               </div>
             ) : deal.status === 'Cancelled' ? (
-              <div className="p-5 bg-danger/5 rounded-xl">
-                <p className="text-danger text-sm font-semibold mb-1">Deal Cancelled</p>
-                <p className="text-dim text-xs leading-relaxed">
+              <div className="p-4 bg-red/5 rounded-xl border border-red/10">
+                <p className="text-red text-sm font-semibold mb-1">Deal Cancelled</p>
+                <p className="text-tx3 text-xs leading-relaxed">
                   This deal was cancelled. Deposited funds have been returned to the maker&apos;s balance.
                 </p>
               </div>
             ) : (
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-2 items-center">
                 {canAccept && (
-                  <button onClick={handleAcceptDeal} disabled={processing} className="btn-silver">
+                  <button onClick={handleAcceptDeal} disabled={processing} className="btn btn-primary">
                     {processing ? (
                       <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-base border-t-transparent rounded-full animate-spin" />
+                        <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
                         Processing...
                       </span>
                     ) : (
@@ -425,10 +399,10 @@ export default function DealDetails() {
                   </button>
                 )}
                 {isMaker && deal.status === 'Pending' && !confirmCancel && (
-                  <button onClick={handleCancelDeal} disabled={processing} className="btn-danger">
+                  <button onClick={handleCancelDeal} disabled={processing} className="btn btn-danger">
                     {processing ? (
                       <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-danger border-t-transparent rounded-full animate-spin" />
+                        <span className="w-4 h-4 border-2 border-red border-t-transparent rounded-full animate-spin" />
                         Processing...
                       </span>
                     ) : (
@@ -437,7 +411,7 @@ export default function DealDetails() {
                   </button>
                 )}
                 {isMaker && deal.status === 'Pending' && (
-                  <p className="text-dim text-sm py-2.5">You created this deal.</p>
+                  <p className="text-tx3 text-sm py-2.5">You created this deal.</p>
                 )}
               </div>
             )}

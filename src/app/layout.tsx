@@ -51,7 +51,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="font-body">{children}</body>
+      <body className="font-sans">{children}</body>
     </html>
   )
 }
