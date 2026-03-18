@@ -1,20 +1,15 @@
 import axios from 'axios'
 
-// For client-side requests, we need to use the full backend URL
-// Next.js rewrites only work for server-side requests
-const API_BASE_URL = 
-  typeof window !== 'undefined' 
+const API_BASE_URL =
+  typeof window !== 'undefined'
     ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000')
-    : 'http://localhost:3000' // Server-side can use direct URL
+    : 'http://localhost:3000'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 })
 
-// Add response interceptor for error logging
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -24,109 +19,54 @@ apiClient.interceptors.response.use(
 )
 
 // Types
-export interface AccountState {
-  account_id: string
-  owner: string
-  balances: Balance[]
-  nonce: number
+
+export interface VestingPosition {
+  platform: string
+  contract: string
+  token_id: number
+  token: string
+  total_amount: string
+  withdrawn_amount: string
+  withdrawable_amount: string
+  start_time: number
+  end_time: number
+  is_transferable: boolean
+  is_cancelable: boolean
+  status: string
 }
 
-export interface Balance {
-  asset_id: number
-  amount: string
-  chain_id: number
+export interface Listing {
+  id: number
+  seller: string
+  nft_contract: string
+  token_id: number
+  payment_token: string
+  price: string
+  active: boolean
 }
 
-export interface Deal {
-  deal_id: number
-  maker: string
-  taker: string | null
-  asset_base: number
-  asset_quote: number
-  chain_id_base: number
-  chain_id_quote: number
-  amount_base: string
-  amount_remaining?: string
-  price_quote_per_base: string
-  visibility: 'Public' | 'Direct'
-  status: 'Pending' | 'Settled' | 'Cancelled' | 'Expired'
-  created_at?: number
-  expires_at?: number | null
-  is_cross_chain?: boolean
-}
+// API
 
-// API functions
 export const api = {
-  // Health check
   async healthCheck() {
     const response = await apiClient.get('/health')
     return response.data
   },
 
-  // Account endpoints
-  async getAccountState(address: string): Promise<AccountState> {
-    const response = await apiClient.get(`/api/v1/account/${address}`)
-    // Backend returns AccountStateResponse, convert to AccountState
-    const data = response.data
-    return {
-      account_id: data.account_id?.toString() || address,
-      owner: data.address
-        ? `0x${Array.from(data.address).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
-        : address,
-      balances: (data.balances || []).map((b: any) => ({
-        asset_id: b.asset_id,
-        chain_id: b.chain_id,
-        amount: b.amount?.toString() || '0',
-      })),
-      nonce: data.nonce || 0,
-    }
+  async getVestingPositions(address: string): Promise<{ positions: VestingPosition[]; total: number }> {
+    const response = await apiClient.get(`/api/v1/vesting/${address}`)
+    return response.data
   },
 
-  // Deal endpoints
-  async getDealsList(params?: {
-    status?: string
-    address?: string
-    visibility?: string
-  }): Promise<{ deals: Deal[]; total: number }> {
-    const response = await apiClient.get('/api/v1/deals', { params })
-    const data = response.data
-    // Convert address arrays to hex strings for all deals
-    return {
-      ...data,
-      deals: data.deals.map((deal: any) => ({
-        ...deal,
-        maker: Array.isArray(deal.maker)
-          ? `0x${Array.from(deal.maker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
-          : deal.maker,
-        taker: deal.taker && Array.isArray(deal.taker)
-          ? `0x${Array.from(deal.taker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
-          : deal.taker,
-      })),
-    }
+  async getListings(): Promise<{ listings: Listing[]; total: number }> {
+    const response = await apiClient.get('/api/v1/listings')
+    return response.data
   },
 
-  async getDealDetails(dealId: number): Promise<Deal> {
-    const response = await apiClient.get(`/api/v1/deal/${dealId}`)
-    const data = response.data
-    // Convert address arrays to hex strings
-    return {
-      ...data,
-      maker: Array.isArray(data.maker)
-        ? `0x${Array.from(data.maker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
-        : data.maker,
-      taker: data.taker && Array.isArray(data.taker)
-        ? `0x${Array.from(data.taker).map((b: any) => (b as number).toString(16).padStart(2, '0')).join('')}`
-        : data.taker,
-    }
-  },
-
-  // Submit transaction
-  // For CreateDeal, all fields should be at top level, not in payload
-  async submitTransaction(request: any) {
-    const response = await apiClient.post('/api/v1/transactions', request)
+  async getListingDetail(id: number): Promise<{ listing: Listing; vesting: VestingPosition | null }> {
+    const response = await apiClient.get(`/api/v1/listing/${id}`)
     return response.data
   },
 }
 
 export default api
-

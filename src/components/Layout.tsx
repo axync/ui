@@ -32,16 +32,16 @@ export default function Layout({ children }: LayoutProps) {
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/'
-    if (path === '/deals') return pathname === '/deals' || pathname === '/deals/create' || pathname?.startsWith('/deals/')
+    if (path === '/list') return pathname === '/list'
+    if (path === '/listing') return pathname?.startsWith('/listing/')
+    if (path === '/portfolio') return pathname === '/portfolio'
     return pathname === path
   }
 
   const navLinks = [
-    { href: '/', label: 'Dashboard' },
-    { href: '/deals/create', label: 'New Deal' },
-    { href: '/deals', label: 'Deals' },
-    { href: '/withdrawals', label: 'Withdrawals' },
-    { href: '/account', label: 'Account' },
+    { href: '/', label: 'Marketplace' },
+    { href: '/list', label: 'Sell Position' },
+    { href: '/portfolio', label: 'Portfolio' },
   ]
 
   return (
