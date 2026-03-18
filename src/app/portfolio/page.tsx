@@ -1,29 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useWallet } from '@/hooks/useWallet'
-import { api, Listing, VestingPosition } from '@/services/api'
+import { api, EnrichedListing, VestingPosition } from '@/services/api'
 import { formatAmount, formatAddress } from '@/utils/transactions'
-
-interface ListingWithVesting extends Listing {
-  vesting?: VestingPosition | null
-}
 
 type Tab = 'listings' | 'purchased'
 
 export default function Portfolio() {
   const { address } = useWallet()
   const [tab, setTab] = useState<Tab>('listings')
-  const [myListings, setMyListings] = useState<ListingWithVesting[]>([])
+  const [myListings, setMyListings] = useState<EnrichedListing[]>([])
   const [positions, setPositions] = useState<VestingPosition[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (address) loadPortfolio()
-  }, [address])
-
-  async function loadPortfolio() {
+  const loadPortfolio = useCallback(async () => {
     setLoading(true)
     try {
       const [listingsData, vestingData] = await Promise.all([
@@ -31,35 +23,40 @@ export default function Portfolio() {
         api.getVestingPositions(address!),
       ])
 
-      // Filter listings by current user
+      // Filter listings by current user — already enriched from API
       const mine = listingsData.listings.filter(
         (l) => l.seller.toLowerCase() === address!.toLowerCase()
       )
 
-      // Enrich with vesting data
-      const enriched = await Promise.all(
-        mine.map(async (listing) => {
-          try {
-            const detail = await api.getListingDetail(listing.id)
-            return { ...listing, vesting: detail.vesting }
-          } catch {
-            return { ...listing, vesting: null }
-          }
-        })
-      )
-
-      setMyListings(enriched)
+      setMyListings(mine)
       setPositions(vestingData.positions || [])
     } catch (err) {
       console.error('Failed to load portfolio:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [address])
+
+  useEffect(() => {
+    if (address) loadPortfolio()
+  }, [address, loadPortfolio])
 
   function formatTime(ts: number): string {
     if (!ts) return '—'
     return new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  function getPlatformIcon(listing: EnrichedListing) {
+    if (listing.platform === 'sablier') return { letter: 'S', bg: 'bg-amber/10 text-amber' }
+    if (listing.platform === 'hedgey') return { letter: 'H', bg: 'bg-green/10 text-green' }
+    if (listing.nft_symbol) return { letter: listing.nft_symbol.charAt(0).toUpperCase(), bg: 'bg-ice/10 text-ice' }
+    return { letter: 'N', bg: 'bg-bg4 text-tx3' }
+  }
+
+  function getListingName(listing: EnrichedListing): string {
+    if (listing.platform) return listing.platform.charAt(0).toUpperCase() + listing.platform.slice(1)
+    if (listing.nft_name) return listing.nft_name
+    return formatAddress(listing.nft_contract)
   }
 
   if (!address) {
@@ -106,48 +103,36 @@ export default function Portfolio() {
         myListings.length === 0 ? (
           <div className="card p-12 text-center">
             <p className="text-tx2 text-lg font-medium">No active listings</p>
-            <p className="text-tx3 text-sm mt-2">List a vesting position to start selling</p>
+            <p className="text-tx3 text-sm mt-2">List an NFT to start selling</p>
             <Link href="/list" className="btn btn-primary mt-4 inline-block">
-              Sell Position
+              Sell NFT
             </Link>
           </div>
         ) : (
           <div className="grid gap-4 fi3">
             {myListings.map((listing) => {
               const isEth = listing.payment_token === '0x0000000000000000000000000000000000000000'
+              const icon = getPlatformIcon(listing)
+              const name = getListingName(listing)
+
               return (
                 <Link key={listing.id} href={`/listing/${listing.id}`} className="card hover:border-lav/30 transition-all group">
                   <div className="p-5 flex items-center gap-6">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
-                      listing.vesting?.platform === 'sablier'
-                        ? 'bg-amber/10 text-amber'
-                        : listing.vesting?.platform === 'hedgey'
-                        ? 'bg-green/10 text-green'
-                        : 'bg-bg4 text-tx3'
-                    }`}>
-                      {listing.vesting?.platform === 'sablier' ? 'S' : listing.vesting?.platform === 'hedgey' ? 'H' : '?'}
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${icon.bg}`}>
+                      {icon.letter}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-tx font-medium">#{listing.token_id}</span>
+                        <span className="text-tx font-medium">{name} #{listing.token_id}</span>
                         <span className={`badge-${listing.active ? 'green' : 'muted'}`}>
                           {listing.active ? 'Active' : 'Sold'}
                         </span>
-                        {listing.vesting && (
-                          <span className={`badge-${listing.vesting.status === 'Streaming' ? 'green' : listing.vesting.status === 'Settled' ? 'lav' : 'muted'}`}>
-                            {listing.vesting.status}
-                          </span>
-                        )}
+                        {listing.platform && <span className="badge-lav">{listing.platform}</span>}
+                        {!listing.platform && listing.nft_symbol && <span className="badge-ice">{listing.nft_symbol}</span>}
                       </div>
                       <div className="text-tx3 text-sm mt-0.5">
-                        {listing.vesting ? (
-                          <>
-                            {formatAmount(BigInt(listing.vesting.total_amount))} tokens · {formatTime(listing.vesting.start_time)} → {formatTime(listing.vesting.end_time)}
-                          </>
-                        ) : (
-                          <>NFT #{listing.token_id} on {formatAddress(listing.nft_contract)}</>
-                        )}
+                        {listing.nft_name || formatAddress(listing.nft_contract)}
                       </div>
                     </div>
 
@@ -157,7 +142,7 @@ export default function Portfolio() {
                       </div>
                     </div>
 
-                    <div className="text-tx3 group-hover:text-lav transition-colors">→</div>
+                    <div className="text-tx3 group-hover:text-lav transition-colors">&rarr;</div>
                   </div>
                 </Link>
               )
@@ -203,7 +188,7 @@ export default function Portfolio() {
                         {pos.is_transferable && <span className="badge-ice">Transferable</span>}
                       </div>
                       <div className="text-tx3 text-sm mt-0.5">
-                        {formatAmount(BigInt(pos.total_amount))} tokens · {formatTime(pos.start_time)} → {formatTime(pos.end_time)}
+                        {formatAmount(BigInt(pos.total_amount))} tokens &middot; {formatTime(pos.start_time)} &rarr; {formatTime(pos.end_time)}
                       </div>
 
                       {/* Progress bar */}
@@ -223,7 +208,7 @@ export default function Portfolio() {
                       )}
                       {pos.is_transferable && (
                         <Link href="/list" className="text-lav text-xs hover:underline mt-1 inline-block">
-                          Sell →
+                          Sell &rarr;
                         </Link>
                       )}
                     </div>

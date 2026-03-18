@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ethers } from 'ethers'
+import Image from 'next/image'
 import { useWallet } from '@/hooks/useWallet'
-import { api, Listing, VestingPosition } from '@/services/api'
+import { api, Listing, NftMetadata, VestingPosition } from '@/services/api'
 import { formatAmount, formatAddress } from '@/utils/transactions'
 
 export default function ListingDetail() {
@@ -12,6 +13,7 @@ export default function ListingDetail() {
   const router = useRouter()
   const { address } = useWallet()
   const [listing, setListing] = useState<Listing | null>(null)
+  const [nft, setNft] = useState<NftMetadata | null>(null)
   const [vesting, setVesting] = useState<VestingPosition | null>(null)
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState(false)
@@ -19,21 +21,22 @@ export default function ListingDetail() {
 
   const escrowContract = process.env.NEXT_PUBLIC_ESCROW_CONTRACT || ''
 
-  useEffect(() => {
-    if (id) loadListing()
-  }, [id])
-
-  async function loadListing() {
+  const loadListing = useCallback(async () => {
     try {
       const data = await api.getListingDetail(Number(id))
       setListing(data.listing)
-      setVesting(data.vesting)
+      setNft(data.nft || null)
+      setVesting(data.vesting || null)
     } catch (err) {
       console.error('Failed to load listing:', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    if (id) loadListing()
+  }, [id, loadListing])
 
   async function handleBuy() {
     if (!listing || !escrowContract || !address) return
@@ -113,11 +116,13 @@ export default function ListingDetail() {
   const isEth = listing.payment_token === '0x0000000000000000000000000000000000000000'
   const isSeller = address?.toLowerCase() === listing.seller.toLowerCase()
   const progress = calcProgress()
+  const isVesting = !!vesting
+  const collectionName = nft?.name || (vesting?.platform ? vesting.platform.charAt(0).toUpperCase() + vesting.platform.slice(1) : 'NFT')
 
   return (
     <div className="space-y-6 fi">
       <button onClick={() => router.push('/')} className="text-tx3 hover:text-tx text-sm transition-colors fi1">
-        ← Back to Marketplace
+        &larr; Back to Marketplace
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -125,17 +130,34 @@ export default function ListingDetail() {
         <div className="lg:col-span-2 space-y-4">
           {/* Header card */}
           <div className="card-grad p-6 fi2">
-            <div className="flex items-center gap-4 mb-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${
-                vesting?.platform === 'sablier' ? 'bg-amber/20 text-amber' : 'bg-green/20 text-green'
-              }`}>
-                {vesting?.platform === 'sablier' ? 'S' : vesting?.platform === 'hedgey' ? 'H' : '?'}
-              </div>
+            <div className="flex items-start gap-4 mb-4">
+              {/* NFT image or platform icon */}
+              {nft?.image ? (
+                <Image
+                  src={nft.image}
+                  alt={`${collectionName} #${listing.token_id}`}
+                  width={64}
+                  height={64}
+                  className="rounded-xl object-cover bg-bg3"
+                  unoptimized
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${
+                  vesting?.platform === 'sablier' ? 'bg-amber/20 text-amber'
+                    : vesting?.platform === 'hedgey' ? 'bg-green/20 text-green'
+                    : 'bg-ice/20 text-ice'
+                }`}>
+                  {vesting?.platform === 'sablier' ? 'S' : vesting?.platform === 'hedgey' ? 'H' : nft?.symbol?.charAt(0) || 'N'}
+                </div>
+              )}
               <div>
                 <h1 className="text-xl font-bold text-tx">
-                  {vesting?.platform ? vesting.platform.charAt(0).toUpperCase() + vesting.platform.slice(1) : 'Vesting'} Stream #{listing.token_id}
+                  {collectionName} #{listing.token_id}
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
+                  {vesting?.platform && <span className="badge-lav">{vesting.platform}</span>}
+                  {!vesting?.platform && nft?.symbol && <span className="badge-ice">{nft.symbol}</span>}
                   {vesting && (
                     <span className={`badge-${vesting.status === 'Streaming' ? 'green' : vesting.status === 'Settled' ? 'lav' : 'muted'}`}>
                       {vesting.status}
@@ -161,7 +183,7 @@ export default function ListingDetail() {
             )}
           </div>
 
-          {/* Vesting schedule */}
+          {/* Vesting schedule (only for vesting NFTs) */}
           {vesting && (
             <div className="card p-5 fi3">
               <h2 className="text-tx font-semibold mb-4">Vesting Schedule</h2>
@@ -189,6 +211,12 @@ export default function ListingDetail() {
           <div className="card p-5 fi4">
             <h2 className="text-tx font-semibold mb-3">Details</h2>
             <div className="space-y-2 text-sm">
+              {nft?.name && (
+                <div className="flex justify-between">
+                  <span className="text-tx3">Collection</span>
+                  <span className="text-tx">{nft.name} ({nft.symbol})</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-tx3">NFT Contract</span>
                 <span className="text-tx font-mono">{formatAddress(listing.nft_contract)}</span>
@@ -205,6 +233,12 @@ export default function ListingDetail() {
                 <div className="flex justify-between">
                   <span className="text-tx3">Underlying Token</span>
                   <span className="text-tx font-mono">{formatAddress(vesting.token)}</span>
+                </div>
+              )}
+              {nft?.token_uri && (
+                <div className="flex justify-between">
+                  <span className="text-tx3">Token URI</span>
+                  <span className="text-tx text-xs truncate max-w-[200px]">{nft.token_uri}</span>
                 </div>
               )}
             </div>
