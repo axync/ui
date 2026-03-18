@@ -45,6 +45,29 @@ export interface Listing {
   active: boolean
 }
 
+export interface EnrichedListing extends Listing {
+  nft_name: string
+  nft_symbol: string
+  platform: string | null // "sablier", "hedgey", or null for generic
+}
+
+export interface NftMetadata {
+  contract: string
+  token_id: number
+  name: string
+  symbol: string
+  token_uri: string
+  image: string
+}
+
+export interface NftPosition {
+  contract: string
+  token_id: number
+  name: string
+  symbol: string
+  token_uri: string
+}
+
 // API
 
 export const api = {
@@ -58,13 +81,19 @@ export const api = {
     return response.data
   },
 
-  async getListings(): Promise<{ listings: Listing[]; total: number }> {
+  async getListings(): Promise<{ listings: EnrichedListing[]; total: number }> {
     const response = await apiClient.get('/api/v1/listings')
     return response.data
   },
 
-  async getListingDetail(id: number): Promise<{ listing: Listing; vesting: VestingPosition | null }> {
+  async getListingDetail(id: number): Promise<{ listing: Listing; nft: NftMetadata | null; vesting: VestingPosition | null }> {
     const response = await apiClient.get(`/api/v1/listing/${id}`)
+    return response.data
+  },
+
+  async getNfts(address: string, contracts: string[]): Promise<{ address: string; nfts: NftPosition[]; total: number }> {
+    const params = contracts.length > 0 ? `?contracts=${contracts.join(',')}` : ''
+    const response = await apiClient.get(`/api/v1/nfts/${address}${params}`)
     return response.data
   },
 }
