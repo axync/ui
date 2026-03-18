@@ -5,23 +5,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: "https://app.axync.xyz",
       lastModified: new Date(),
-      changeFrequency: "weekly",
+      changeFrequency: "daily",
       priority: 1,
     },
     {
-      url: "https://app.axync.xyz/deals",
+      url: "https://app.axync.xyz/list",
       lastModified: new Date(),
-      changeFrequency: "daily",
+      changeFrequency: "weekly",
       priority: 0.8,
     },
     {
-      url: "https://app.axync.xyz/deals/create",
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.7,
-    },
-    {
-      url: "https://app.axync.xyz/withdrawals",
+      url: "https://app.axync.xyz/portfolio",
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
