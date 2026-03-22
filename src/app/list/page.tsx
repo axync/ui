@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ethers } from 'ethers'
 import { useWallet } from '@/hooks/useWallet'
 import { ESCROW_ABI, ERC20_ABI, ERC721_ABI } from '@/config/abis'
@@ -10,7 +11,12 @@ import { SUPPORTED_CHAIN_IDS, getContracts } from '@/config/contracts'
 type AssetType = 'erc20' | 'erc721'
 type Step = 'select' | 'price' | 'confirm'
 
-export default function ListPage() {
+const STEPS = [
+  { key: 'select', label: 'Asset', num: 1 },
+  { key: 'price', label: 'Price & Chain', num: 2 },
+] as const
+
+export default function CreateDealPage() {
   const router = useRouter()
   const { address } = useWallet()
 
@@ -115,9 +121,12 @@ export default function ListPage() {
 
   if (!address) {
     return (
-      <div className="card p-12 text-center">
-        <p className="text-tx2 text-lg font-medium">Connect your wallet</p>
-        <p className="text-tx3 text-sm mt-2">You need a wallet to list assets</p>
+      <div className="max-w-lg mx-auto">
+        <div className="card p-12 text-center space-y-3">
+          <div className="text-3xl opacity-30">+</div>
+          <p className="text-tx text-lg font-semibold">Connect Wallet</p>
+          <p className="text-tx3 text-sm">Connect your wallet to create a deal</p>
+        </div>
       </div>
     )
   }
@@ -125,97 +134,136 @@ export default function ListPage() {
   // Success
   if (step === 'confirm' && txHash) {
     return (
-      <div className="card p-12 text-center space-y-4">
-        <div className="text-4xl text-green">&#x2713;</div>
-        <h2 className="text-xl font-bold text-tx">Listed Successfully</h2>
-        <p className="text-tx3 text-sm">
-          Your {assetType === 'erc20' ? 'tokens' : 'NFT'} are now in escrow. The sequencer will pick up the listing shortly.
-        </p>
-        <p className="text-tx3 text-xs font-mono">{txHash}</p>
-        <div className="flex gap-3 justify-center mt-4">
-          <button onClick={() => router.push('/')} className="btn btn-primary">
-            View Marketplace
-          </button>
-          <button onClick={() => router.push('/portfolio')} className="btn btn-secondary">
-            My Portfolio
-          </button>
+      <div className="max-w-lg mx-auto">
+        <div className="card p-10 text-center space-y-5">
+          <div className="w-16 h-16 rounded-full bg-green/10 border border-green/20 flex items-center justify-center mx-auto">
+            <span className="text-green text-3xl">&#x2713;</span>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-tx">Deal Created</h2>
+            <p className="text-tx3 text-sm mt-2">
+              Your {assetType === 'erc20' ? 'tokens are' : 'NFT is'} now in escrow. The sequencer will pick up the listing shortly.
+            </p>
+          </div>
+          <div className="bg-bg rounded-lg p-3">
+            <div className="text-tx3 text-[10px] uppercase tracking-wider mb-1">Transaction Hash</div>
+            <p className="text-tx text-xs font-mono break-all">{txHash}</p>
+          </div>
+          <div className="flex gap-3 justify-center pt-2">
+            <button onClick={() => router.push('/')} className="btn btn-primary">
+              View Marketplace
+            </button>
+            <button onClick={() => router.push('/portfolio')} className="btn btn-secondary">
+              My Portfolio
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-tx">List Asset</h1>
-        <p className="text-tx3 text-sm mt-1">List tokens or NFTs for cross-chain sale</p>
+    <div className="max-w-lg mx-auto space-y-6 fi">
+      {/* Header */}
+      <div className="fi1">
+        <Link href="/" className="text-tx3 text-sm hover:text-tx transition-colors inline-flex items-center gap-1.5 mb-4">
+          &larr; Back to Marketplace
+        </Link>
+        <h1 className="text-2xl font-bold text-tx">Create Deal</h1>
+        <p className="text-tx3 text-sm mt-1">Sell tokens or NFTs cross-chain with ZK settlement</p>
       </div>
 
-      {/* Steps */}
-      <div className="flex items-center gap-2 text-sm">
-        {(['select', 'price'] as const).map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            {i > 0 && <div className="w-8 h-px bg-brd" />}
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-              step === s ? 'bg-lav text-bg' : 'bg-bg3 text-tx3'
-            }`}>
-              {i + 1}
+      {/* Steps indicator */}
+      <div className="flex items-center gap-3 fi2">
+        {STEPS.map((s, i) => (
+          <div key={s.key} className="flex items-center gap-3 flex-1">
+            {i > 0 && <div className={`h-px flex-1 transition-colors ${step === 'price' ? 'bg-lav/30' : 'bg-brd'}`} />}
+            <div className="flex items-center gap-2.5">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                step === s.key
+                  ? 'bg-grad text-bg shadow-glow-lav'
+                  : i === 0 && step === 'price'
+                    ? 'bg-green/10 text-green border border-green/20'
+                    : 'bg-bg3 text-tx3 border border-brd'
+              }`}>
+                {i === 0 && step === 'price' ? '\u2713' : s.num}
+              </div>
+              <span className={`text-sm font-medium ${step === s.key ? 'text-tx' : 'text-tx3'}`}>
+                {s.label}
+              </span>
             </div>
-            <span className={step === s ? 'text-tx font-medium' : 'text-tx3'}>
-              {s === 'select' ? 'Asset' : 'Price & Chain'}
-            </span>
           </div>
         ))}
       </div>
 
+      {/* Error */}
       {error && (
-        <div className="card border-red/30 bg-red/5 p-3 text-red text-sm">{error}</div>
+        <div className="card border-red/30 bg-red/5 p-4 flex items-start gap-3">
+          <span className="text-red text-sm mt-px">!</span>
+          <p className="text-red text-sm flex-1">{error}</p>
+          <button onClick={() => setError('')} className="text-red/60 hover:text-red text-xs">&times;</button>
+        </div>
       )}
 
       {/* Step 1: Select Asset */}
       {step === 'select' && (
-        <div className="card p-6 space-y-5">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setAssetType('erc20')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                assetType === 'erc20' ? 'bg-lav/10 text-lav border border-lav/20' : 'bg-bg3 text-tx3 border border-transparent'
-              }`}
-            >
-              Token
-            </button>
-            <button
-              onClick={() => setAssetType('erc721')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                assetType === 'erc721' ? 'bg-lav/10 text-lav border border-lav/20' : 'bg-bg3 text-tx3 border border-transparent'
-              }`}
-            >
-              NFT
-            </button>
+        <div className="card p-6 space-y-5 fi3">
+          {/* Asset type selector */}
+          <div>
+            <label className="text-tx2 text-xs font-medium uppercase tracking-wider block mb-2">Asset Type</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setAssetType('erc20')}
+                className={`py-3 rounded-xl text-sm font-medium transition-all border ${
+                  assetType === 'erc20'
+                    ? 'bg-green/8 text-green border-green/20'
+                    : 'bg-bg text-tx3 border-brd hover:border-brd2'
+                }`}
+              >
+                <div className="text-lg mb-0.5">$</div>
+                Token (ERC-20)
+              </button>
+              <button
+                onClick={() => setAssetType('erc721')}
+                className={`py-3 rounded-xl text-sm font-medium transition-all border ${
+                  assetType === 'erc721'
+                    ? 'bg-lav/8 text-lav border-lav/20'
+                    : 'bg-bg text-tx3 border-brd hover:border-brd2'
+                }`}
+              >
+                <div className="text-lg mb-0.5">N</div>
+                NFT (ERC-721)
+              </button>
+            </div>
           </div>
 
+          {/* Contract address */}
           <div>
-            <label className="text-tx2 text-sm font-medium block mb-1.5">Contract Address</label>
+            <label className="text-tx2 text-xs font-medium uppercase tracking-wider block mb-2">Contract Address</label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={tokenContract}
                 onChange={(e) => setTokenContract(e.target.value)}
                 placeholder="0x..."
-                className="form-input flex-1"
+                className="form-input flex-1 font-mono text-xs"
               />
-              <button onClick={lookupToken} className="btn btn-secondary text-sm">
+              <button onClick={lookupToken} className="btn btn-secondary whitespace-nowrap">
                 Lookup
               </button>
             </div>
             {tokenSymbol && (
-              <p className="text-green text-xs mt-1">Found: {tokenSymbol}</p>
+              <div className="flex items-center gap-1.5 mt-2 text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-green" />
+                <span className="text-green font-medium">Found: {tokenSymbol}</span>
+              </div>
             )}
           </div>
 
+          {/* Amount / Token ID */}
           {assetType === 'erc20' ? (
             <div>
-              <label className="text-tx2 text-sm font-medium block mb-1.5">Amount</label>
+              <label className="text-tx2 text-xs font-medium uppercase tracking-wider block mb-2">Amount</label>
               <input
                 type="text"
                 value={tokenAmount}
@@ -224,12 +272,12 @@ export default function ListPage() {
                 className="form-input"
               />
               {tokenSymbol && (
-                <p className="text-tx3 text-xs mt-1">{tokenSymbol} tokens</p>
+                <p className="text-tx3 text-xs mt-1.5">{tokenSymbol} tokens</p>
               )}
             </div>
           ) : (
             <div>
-              <label className="text-tx2 text-sm font-medium block mb-1.5">Token ID</label>
+              <label className="text-tx2 text-xs font-medium uppercase tracking-wider block mb-2">Token ID</label>
               <input
                 type="text"
                 value={tokenId}
@@ -243,7 +291,7 @@ export default function ListPage() {
           <button
             onClick={() => setStep('price')}
             disabled={!tokenContract || (assetType === 'erc20' ? !tokenAmount : !tokenId)}
-            className="btn btn-primary w-full"
+            className="btn btn-primary btn-lg w-full justify-center"
           >
             Continue
           </button>
@@ -252,83 +300,92 @@ export default function ListPage() {
 
       {/* Step 2: Price & Chain */}
       {step === 'price' && (
-        <div className="card p-6 space-y-5">
-          <div>
-            <label className="text-tx2 text-sm font-medium block mb-1.5">Asset Chain</label>
-            <select
-              value={assetChainId}
-              onChange={(e) => setAssetChainId(Number(e.target.value))}
-              className="form-input"
-            >
-              {SUPPORTED_CHAIN_IDS.map((id) => (
-                <option key={id} value={id}>{getContracts(id)?.name}</option>
-              ))}
-            </select>
-            <p className="text-tx3 text-xs mt-1">Chain where your asset is</p>
+        <div className="space-y-4 fi3">
+          <div className="card p-6 space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-tx2 text-xs font-medium uppercase tracking-wider block mb-2">Asset Chain</label>
+                <select
+                  value={assetChainId}
+                  onChange={(e) => setAssetChainId(Number(e.target.value))}
+                  className="form-select"
+                >
+                  {SUPPORTED_CHAIN_IDS.map((id) => (
+                    <option key={id} value={id}>{getContracts(id)?.name}</option>
+                  ))}
+                </select>
+                <p className="text-tx3 text-[10px] mt-1">Where your asset is</p>
+              </div>
+
+              <div>
+                <label className="text-tx2 text-xs font-medium uppercase tracking-wider block mb-2">Payment Chain</label>
+                <select
+                  value={paymentChainId}
+                  onChange={(e) => setPaymentChainId(Number(e.target.value))}
+                  className="form-select"
+                >
+                  {SUPPORTED_CHAIN_IDS.map((id) => (
+                    <option key={id} value={id}>{getContracts(id)?.name}</option>
+                  ))}
+                </select>
+                <p className="text-tx3 text-[10px] mt-1">Where buyer pays</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-tx2 text-xs font-medium uppercase tracking-wider block mb-2">Price (ETH)</label>
+              <input
+                type="text"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0.01"
+                className="form-input text-lg font-semibold"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="text-tx2 text-sm font-medium block mb-1.5">Payment Chain</label>
-            <select
-              value={paymentChainId}
-              onChange={(e) => setPaymentChainId(Number(e.target.value))}
-              className="form-input"
-            >
-              {SUPPORTED_CHAIN_IDS.map((id) => (
-                <option key={id} value={id}>{getContracts(id)?.name}</option>
-              ))}
-            </select>
-            <p className="text-tx3 text-xs mt-1">Chain where buyer will pay</p>
-          </div>
-
-          <div>
-            <label className="text-tx2 text-sm font-medium block mb-1.5">Price (ETH)</label>
-            <input
-              type="text"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0.01"
-              className="form-input"
-            />
-          </div>
-
-          <div className="bg-bg2 rounded-xl p-4 space-y-2 text-sm">
-            <div className="flex justify-between text-tx3">
-              <span>Asset</span>
-              <span className="text-tx font-medium">
-                {assetType === 'erc20' ? `${tokenAmount} ${tokenSymbol || 'tokens'}` : `NFT #${tokenId}`}
-              </span>
-            </div>
-            <div className="flex justify-between text-tx3">
-              <span>Contract</span>
-              <span className="text-tx font-mono text-xs">{tokenContract.slice(0, 10)}...{tokenContract.slice(-6)}</span>
-            </div>
-            <div className="flex justify-between text-tx3">
-              <span>Route</span>
-              <span className="text-tx">{getContracts(assetChainId)?.shortName} &rarr; {getContracts(paymentChainId)?.shortName}</span>
-            </div>
-            <div className="flex justify-between text-tx3">
-              <span>Price</span>
-              <span className="text-tx font-semibold">{price || '—'} ETH</span>
+          {/* Deal preview */}
+          <div className="card-grad rounded-card p-5 space-y-3">
+            <div className="text-tx2 text-[10px] uppercase tracking-wider font-semibold">Deal Preview</div>
+            <div className="space-y-2.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-tx3">Asset</span>
+                <span className="text-tx font-medium">
+                  {assetType === 'erc20' ? `${tokenAmount} ${tokenSymbol || 'tokens'}` : `NFT #${tokenId}`}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-tx3">Contract</span>
+                <span className="text-tx font-mono text-xs">{tokenContract.slice(0, 10)}...{tokenContract.slice(-6)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-tx3">Route</span>
+                <span className="text-tx font-medium">{getContracts(assetChainId)?.shortName} &rarr; {getContracts(paymentChainId)?.shortName}</span>
+              </div>
+              <div className="h-px bg-brd/50" />
+              <div className="flex justify-between text-sm">
+                <span className="text-tx3">Price</span>
+                <span className="text-tx font-bold text-base">{price || '—'} ETH</span>
+              </div>
             </div>
           </div>
 
           <div className="flex gap-3">
-            <button onClick={() => setStep('select')} className="btn btn-secondary flex-1">
-              Back
+            <button onClick={() => setStep('select')} className="btn btn-secondary flex-1 justify-center">
+              &larr; Back
             </button>
             <button
               onClick={handleList}
               disabled={!price || loading}
-              className="btn btn-primary flex-1"
+              className="btn btn-primary btn-lg flex-[2] justify-center"
             >
               {loading ? (
                 <span className="flex items-center gap-2 justify-center">
                   <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
-                  Listing...
+                  Creating Deal...
                 </span>
               ) : (
-                'List Asset'
+                'Create Deal'
               )}
             </button>
           </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ethers } from 'ethers'
 import { useWallet } from '@/hooks/useWallet'
 import { api, NftListing, ReleaseProof } from '@/services/api'
@@ -9,6 +10,13 @@ import { getContracts, EIP712_DOMAIN, BUYNFT_TYPES } from '@/config/contracts'
 import { VAULT_ABI, ESCROW_ABI } from '@/config/abis'
 
 type BuyStep = 'details' | 'deposit' | 'buy' | 'waiting' | 'claim' | 'done'
+
+const BUY_STEPS = [
+  { key: 'deposit', label: 'Deposit', icon: '1' },
+  { key: 'buy', label: 'Sign', icon: '2' },
+  { key: 'waiting', label: 'Process', icon: '3' },
+  { key: 'claim', label: 'Claim', icon: '4' },
+] as const
 
 export default function ListingPage() {
   const params = useParams()
@@ -41,13 +49,39 @@ export default function ListingPage() {
     loadListing()
   }, [loadListing])
 
-  if (loading) return <div className="card p-12 text-center text-tx3">Loading...</div>
-  if (!listing) return <div className="card p-12 text-center text-red">{error || 'Not found'}</div>
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="card p-12 text-center">
+          <div className="w-8 h-8 border-2 border-lav/30 border-t-lav rounded-full animate-spin mx-auto" />
+          <p className="text-tx3 text-sm mt-4">Loading deal...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!listing) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="card p-12 text-center">
+          <p className="text-red font-medium">{error || 'Deal not found'}</p>
+          <Link href="/" className="btn btn-secondary mt-4 inline-flex">
+            Back to Marketplace
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   const assetChain = getContracts(listing.nft_chain_id)
   const paymentChain = getContracts(listing.payment_chain_id)
   const priceEth = ethers.formatEther(listing.price)
   const isSeller = address?.toLowerCase() === listing.seller?.toLowerCase()
+  const isToken = listing.asset_type === 'ERC20'
+
+  const assetLabel = isToken
+    ? `${ethers.formatEther(listing.amount?.toString() || '0')} tokens`
+    : `NFT #${listing.token_id}`
 
   // Step 1: Deposit ETH on payment chain
   async function handleDeposit() {
@@ -56,7 +90,6 @@ export default function ListingPage() {
     setError('')
 
     try {
-      // Switch to payment chain
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: '0x' + listing!.payment_chain_id.toString(16) }],
@@ -84,11 +117,9 @@ export default function ListingPage() {
     setError('')
 
     try {
-      // Get nonce from sequencer
       const account = await api.getAccountState(address)
       const nonce = account.nonce || 0
 
-      // Sign EIP-712
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
 
@@ -98,7 +129,6 @@ export default function ListingPage() {
         listingId: listing!.id,
       })
 
-      // Submit to API
       await api.submitTransaction({
         kind: 'BuyNft',
         from: address,
@@ -116,7 +146,6 @@ export default function ListingPage() {
           const updated = await api.getNftListing(listingId)
           if (updated.status === 'Sold') {
             setListing(updated)
-            // Get proof
             const proofData = await api.getReleaseProof(listingId)
             setProof(proofData)
             setBuyStep('claim')
@@ -127,7 +156,6 @@ export default function ListingPage() {
 
       setError('Timeout waiting for block execution. Try claiming later from Portfolio.')
       setBuyStep('claim')
-      // Still try to get proof
       try {
         const proofData = await api.getReleaseProof(listingId)
         setProof(proofData)
@@ -146,17 +174,15 @@ export default function ListingPage() {
     setError('')
 
     try {
-      // Switch to asset chain
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: '0x' + listing!.nft_chain_id.toString(16) }],
       })
 
-      // Wait for relayer to submit withdrawalsRoot
       const provider = new ethers.BrowserProvider(window.ethereum)
       const escrow = new ethers.Contract(assetChain.escrow, ESCROW_ABI, provider)
 
-      // Poll for withdrawalsRoot to match
+      // Poll for withdrawalsRoot
       for (let i = 0; i < 60; i++) {
         const root = await escrow.withdrawalsRoot()
         if (root === proof.leaf || i > 50) break
@@ -186,201 +212,245 @@ export default function ListingPage() {
     }
   }
 
+  function getStepState(stepKey: string) {
+    const stepOrder = ['deposit', 'buy', 'waiting', 'claim']
+    const currentIdx = stepOrder.indexOf(buyStep)
+    const stepIdx = stepOrder.indexOf(stepKey)
+    if (buyStep === 'done') return 'done'
+    if (buyStep === 'details') return 'pending'
+    if (stepIdx < currentIdx) return 'done'
+    if (stepIdx === currentIdx) return 'active'
+    return 'pending'
+  }
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <button onClick={() => router.push('/')} className="text-tx3 text-sm hover:text-tx transition-colors">
+    <div className="max-w-2xl mx-auto space-y-6 fi">
+      {/* Back nav */}
+      <Link href="/" className="text-tx3 text-sm hover:text-tx transition-colors inline-flex items-center gap-1.5 fi1">
         &larr; Back to Marketplace
-      </button>
+      </Link>
 
-      {/* Listing info card */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${
-              listing.asset_type === 'ERC20' ? 'bg-green/10 text-green' : 'bg-lav/10 text-lav'
+      {/* Deal info card */}
+      <div className="card overflow-hidden fi2">
+        {/* Header with gradient */}
+        <div className={`px-6 py-5 border-b border-brd ${isToken ? 'bg-green/[0.03]' : 'bg-lav/[0.03]'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold ${
+                isToken ? 'bg-green/10 text-green border border-green/10' : 'bg-lav/10 text-lav border border-lav/10'
+              }`}>
+                {isToken ? '$' : 'N'}
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-tx">{assetLabel}</h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={isToken ? 'badge-green' : 'badge-lav'}>
+                    {isToken ? 'Token' : 'NFT'}
+                  </span>
+                  <span className="text-tx3 text-xs font-mono">
+                    {listing.nft_contract.slice(0, 10)}...{listing.nft_contract.slice(-4)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+              listing.status === 'Active' ? 'bg-green/10 text-green border border-green/20' :
+              listing.status === 'Sold' ? 'bg-lav/10 text-lav border border-lav/20' : 'bg-red/10 text-red border border-red/20'
             }`}>
-              {listing.asset_type === 'ERC20' ? '$' : 'N'}
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-tx">
-                {listing.asset_type === 'ERC20'
-                  ? `${ethers.formatEther(listing.amount?.toString() || '0')} tokens`
-                  : `NFT #${listing.token_id}`
-                }
-              </h1>
-              <span className={listing.asset_type === 'ERC20' ? 'badge-green' : 'badge-lav'}>
-                {listing.asset_type === 'ERC20' ? 'Token' : 'NFT'}
-              </span>
-            </div>
-          </div>
-          <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            listing.status === 'Active' ? 'bg-green/10 text-green' :
-            listing.status === 'Sold' ? 'bg-lav/10 text-lav' : 'bg-red/10 text-red'
-          }`}>
-            {listing.status}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="bg-bg2 rounded-xl p-3">
-            <div className="text-tx3 text-xs">Price</div>
-            <div className="text-tx font-semibold text-lg mt-0.5">{priceEth} ETH</div>
-          </div>
-          <div className="bg-bg2 rounded-xl p-3">
-            <div className="text-tx3 text-xs">Route</div>
-            <div className="text-tx font-medium mt-0.5">
-              {assetChain?.shortName} &rarr; {paymentChain?.shortName}
+              {listing.status}
             </div>
           </div>
         </div>
 
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between py-1.5 border-b border-brd">
-            <span className="text-tx3">Contract</span>
-            <span className="text-tx font-mono text-xs">{listing.nft_contract}</span>
+        {/* Details */}
+        <div className="p-6">
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div className="bg-bg rounded-xl p-4 border border-brd/50">
+              <div className="text-tx3 text-[10px] uppercase tracking-wider font-medium">Price</div>
+              <div className="text-tx font-bold text-2xl mt-1">{priceEth} ETH</div>
+            </div>
+            <div className="bg-bg rounded-xl p-4 border border-brd/50">
+              <div className="text-tx3 text-[10px] uppercase tracking-wider font-medium">Route</div>
+              <div className="text-tx font-semibold text-lg mt-1">
+                {assetChain?.shortName} &rarr; {paymentChain?.shortName}
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between py-1.5 border-b border-brd">
-            <span className="text-tx3">Seller</span>
-            <span className="text-tx font-mono text-xs">{listing.seller}</span>
-          </div>
-          <div className="flex justify-between py-1.5 border-b border-brd">
-            <span className="text-tx3">On-chain Listing ID</span>
-            <span className="text-tx">#{listing.on_chain_listing_id}</span>
-          </div>
-          <div className="flex justify-between py-1.5">
-            <span className="text-tx3">Sequencer ID</span>
-            <span className="text-tx">#{listing.id}</span>
+
+          <div className="space-y-0">
+            <div className="flex justify-between py-3 border-b border-brd/40 text-sm">
+              <span className="text-tx3">Seller</span>
+              <span className="text-tx font-mono text-xs">{listing.seller.slice(0, 8)}...{listing.seller.slice(-6)}</span>
+            </div>
+            <div className="flex justify-between py-3 border-b border-brd/40 text-sm">
+              <span className="text-tx3">On-chain ID</span>
+              <span className="text-tx font-mono">#{listing.on_chain_listing_id}</span>
+            </div>
+            <div className="flex justify-between py-3 text-sm">
+              <span className="text-tx3">Sequencer ID</span>
+              <span className="text-tx font-mono">#{listing.id}</span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="card border-red/30 bg-red/5 p-3 text-red text-sm">{error}</div>
+        <div className="card border-red/30 bg-red/5 p-4 flex items-start gap-3">
+          <span className="text-red text-sm mt-px">!</span>
+          <p className="text-red text-sm flex-1">{error}</p>
+          <button onClick={() => setError('')} className="text-red/60 hover:text-red text-xs">&times;</button>
+        </div>
       )}
 
       {/* Buy flow */}
       {listing.status === 'Active' && !isSeller && address && (
-        <div className="card p-6 space-y-4">
-          <h2 className="text-lg font-bold text-tx">Buy This Asset</h2>
+        <div className="card p-6 space-y-5 fi3">
+          <h2 className="text-lg font-bold text-tx">Buy This Deal</h2>
 
-          {/* Progress */}
-          <div className="flex items-center gap-1 text-xs">
-            {['Deposit', 'Sign TX', 'Wait', 'Claim'].map((label, i) => {
-              const stepIndex = ['deposit', 'buy', 'waiting', 'claim'].indexOf(buyStep)
-              const isActive = i === stepIndex
-              const isDone = i < stepIndex || buyStep === 'done'
+          {/* Step progress */}
+          <div className="flex items-center gap-0">
+            {BUY_STEPS.map((s, i) => {
+              const state = getStepState(s.key)
               return (
-                <div key={label} className="flex items-center gap-1 flex-1">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    isDone ? 'bg-green text-bg' : isActive ? 'bg-lav text-bg' : 'bg-bg3 text-tx3'
-                  }`}>
-                    {isDone ? '\u2713' : i + 1}
+                <div key={s.key} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                      state === 'done' ? 'bg-green/10 text-green border border-green/20' :
+                      state === 'active' ? 'bg-grad text-bg shadow-glow-lav' :
+                      'bg-bg3 text-tx3 border border-brd'
+                    }`}>
+                      {state === 'done' ? '\u2713' : s.icon}
+                    </div>
+                    <span className={`text-[10px] font-medium ${
+                      state === 'active' ? 'text-tx' : state === 'done' ? 'text-green' : 'text-tx3'
+                    }`}>
+                      {s.label}
+                    </span>
                   </div>
-                  <span className={isActive ? 'text-tx' : 'text-tx3'}>{label}</span>
-                  {i < 3 && <div className="flex-1 h-px bg-brd mx-1" />}
+                  {i < BUY_STEPS.length - 1 && (
+                    <div className={`flex-1 h-px mx-2 mt-[-18px] transition-colors ${
+                      state === 'done' ? 'bg-green/30' : 'bg-brd'
+                    }`} />
+                  )}
                 </div>
               )
             })}
           </div>
 
-          {buyStep === 'details' && (
-            <div className="space-y-3">
-              <p className="text-tx3 text-sm">
-                To buy this asset, you need to deposit <strong className="text-tx">{priceEth} ETH</strong> on{' '}
-                <strong className="text-tx">{paymentChain?.shortName}</strong>, then sign a purchase transaction.
-              </p>
-              <button onClick={() => setBuyStep('deposit')} className="btn btn-primary w-full">
-                Start Purchase
-              </button>
-            </div>
-          )}
+          {/* Step content */}
+          <div className="bg-bg rounded-xl p-5 border border-brd/50">
+            {buyStep === 'details' && (
+              <div className="space-y-3">
+                <p className="text-tx2 text-sm">
+                  Deposit <strong className="text-tx">{priceEth} ETH</strong> on{' '}
+                  <strong className="text-tx">{paymentChain?.shortName}</strong>, sign a purchase transaction, and claim your asset.
+                </p>
+                <button onClick={() => setBuyStep('deposit')} className="btn btn-primary btn-lg w-full justify-center">
+                  Start Purchase
+                </button>
+              </div>
+            )}
 
-          {buyStep === 'deposit' && (
-            <div className="space-y-3">
-              <p className="text-tx3 text-sm">
-                Step 1: Deposit {priceEth} ETH to AxyncVault on {paymentChain?.shortName}
-              </p>
-              <button onClick={handleDeposit} disabled={txLoading} className="btn btn-primary w-full">
-                {txLoading ? (
-                  <span className="flex items-center gap-2 justify-center">
-                    <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
-                    Depositing...
-                  </span>
-                ) : (
-                  `Deposit ${priceEth} ETH`
+            {buyStep === 'deposit' && (
+              <div className="space-y-3">
+                <div className="text-tx2 text-xs uppercase tracking-wider font-medium">Step 1 — Deposit</div>
+                <p className="text-tx3 text-sm">
+                  Deposit {priceEth} ETH to AxyncVault on {paymentChain?.shortName}. Your wallet will prompt for a transaction.
+                </p>
+                <button onClick={handleDeposit} disabled={txLoading} className="btn btn-primary btn-lg w-full justify-center">
+                  {txLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
+                      Depositing...
+                    </span>
+                  ) : (
+                    `Deposit ${priceEth} ETH`
+                  )}
+                </button>
+              </div>
+            )}
+
+            {buyStep === 'buy' && (
+              <div className="space-y-3">
+                <div className="text-tx2 text-xs uppercase tracking-wider font-medium">Step 2 — Sign Transaction</div>
+                <p className="text-tx3 text-sm">
+                  Sign an EIP-712 message to authorize the purchase through the sequencer.
+                </p>
+                <button onClick={handleBuyNft} disabled={txLoading} className="btn btn-primary btn-lg w-full justify-center">
+                  {txLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
+                      Signing...
+                    </span>
+                  ) : (
+                    'Sign & Submit'
+                  )}
+                </button>
+              </div>
+            )}
+
+            {buyStep === 'waiting' && (
+              <div className="text-center py-4 space-y-4">
+                <div className="w-10 h-10 border-2 border-lav/30 border-t-lav rounded-full animate-spin mx-auto" />
+                <div>
+                  <p className="text-tx2 font-medium">Processing your trade...</p>
+                  <p className="text-tx3 text-xs mt-1">The sequencer is executing your purchase. This usually takes 5-15 seconds.</p>
+                </div>
+              </div>
+            )}
+
+            {buyStep === 'claim' && proof && (
+              <div className="space-y-3">
+                <div className="text-tx2 text-xs uppercase tracking-wider font-medium">Step 3 — Claim Asset</div>
+                <p className="text-tx3 text-sm">
+                  Claim your {isToken ? 'tokens' : 'NFT'} on {assetChain?.shortName} using the ZK merkle proof.
+                </p>
+                <button onClick={handleClaim} disabled={txLoading} className="btn btn-primary btn-lg w-full justify-center">
+                  {txLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
+                      Claiming...
+                    </span>
+                  ) : (
+                    'Claim Asset'
+                  )}
+                </button>
+              </div>
+            )}
+
+            {buyStep === 'done' && (
+              <div className="text-center py-4 space-y-4">
+                <div className="w-14 h-14 rounded-full bg-green/10 border border-green/20 flex items-center justify-center mx-auto">
+                  <span className="text-green text-2xl">&#x2713;</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-tx">Purchase Complete!</h3>
+                  <p className="text-tx3 text-sm mt-1">
+                    Asset claimed on {assetChain?.shortName}
+                  </p>
+                </div>
+                {claimTxHash && (
+                  <div className="bg-bg2 rounded-lg p-3 mx-auto max-w-sm">
+                    <div className="text-tx3 text-[10px] uppercase tracking-wider mb-1">Claim TX</div>
+                    <p className="text-tx text-xs font-mono break-all">{claimTxHash}</p>
+                  </div>
                 )}
-              </button>
-            </div>
-          )}
-
-          {buyStep === 'buy' && (
-            <div className="space-y-3">
-              <p className="text-tx3 text-sm">
-                Step 2: Sign EIP-712 purchase transaction for the sequencer
-              </p>
-              <button onClick={handleBuyNft} disabled={txLoading} className="btn btn-primary w-full">
-                {txLoading ? (
-                  <span className="flex items-center gap-2 justify-center">
-                    <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
-                    Signing...
-                  </span>
-                ) : (
-                  'Sign & Submit BuyNft'
-                )}
-              </button>
-            </div>
-          )}
-
-          {buyStep === 'waiting' && (
-            <div className="text-center space-y-3">
-              <div className="w-8 h-8 border-2 border-lav border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-tx3 text-sm">Waiting for sequencer to process your trade...</p>
-              <p className="text-tx3 text-xs">This usually takes 5-15 seconds</p>
-            </div>
-          )}
-
-          {buyStep === 'claim' && proof && (
-            <div className="space-y-3">
-              <p className="text-tx3 text-sm">
-                Step 3: Claim your asset on {assetChain?.shortName} using the merkle proof
-              </p>
-              <button onClick={handleClaim} disabled={txLoading} className="btn btn-primary w-full">
-                {txLoading ? (
-                  <span className="flex items-center gap-2 justify-center">
-                    <span className="w-4 h-4 border-2 border-bg border-t-transparent rounded-full animate-spin" />
-                    Claiming...
-                  </span>
-                ) : (
-                  'Claim Asset'
-                )}
-              </button>
-            </div>
-          )}
-
-          {buyStep === 'done' && (
-            <div className="text-center space-y-3">
-              <div className="text-4xl text-green">&#x2713;</div>
-              <h3 className="text-lg font-bold text-tx">Purchase Complete!</h3>
-              <p className="text-tx3 text-sm">
-                Asset successfully claimed on {assetChain?.shortName}
-              </p>
-              {claimTxHash && (
-                <p className="text-tx3 text-xs font-mono">{claimTxHash}</p>
-              )}
-              <button onClick={() => router.push('/portfolio')} className="btn btn-primary">
-                View Portfolio
-              </button>
-            </div>
-          )}
+                <button onClick={() => router.push('/portfolio')} className="btn btn-primary">
+                  View Portfolio
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Sold state */}
       {listing.status === 'Sold' && listing.buyer && (
         <div className="card p-6 text-center space-y-2">
-          <p className="text-tx2 font-medium">This listing has been sold</p>
-          <p className="text-tx3 text-sm">
+          <div className="badge-lav mx-auto inline-flex">Sold</div>
+          <p className="text-tx2 font-medium">This deal has been completed</p>
+          <p className="text-tx3 text-xs font-mono">
             Buyer: {listing.buyer.slice(0, 8)}...{listing.buyer.slice(-6)}
           </p>
         </div>
@@ -388,8 +458,9 @@ export default function ListingPage() {
 
       {/* Not connected */}
       {!address && listing.status === 'Active' && (
-        <div className="card p-6 text-center">
-          <p className="text-tx2">Connect your wallet to buy this asset</p>
+        <div className="card p-8 text-center space-y-2">
+          <p className="text-tx font-medium">Connect your wallet to buy</p>
+          <p className="text-tx3 text-sm">Use the Connect Wallet button in the navbar</p>
         </div>
       )}
     </div>

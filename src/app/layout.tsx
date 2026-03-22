@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
 import './globals.css'
+import LayoutWrapper from '@/components/Layout'
 
 export const metadata: Metadata = {
   title: 'Axync — Cross-Chain Settlement',
@@ -51,7 +52,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+          <LayoutWrapper>{children}</LayoutWrapper>
+        </body>
     </html>
   )
 }
