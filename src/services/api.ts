@@ -1,24 +1,55 @@
-import axios from 'axios'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
-const API_BASE_URL =
-  typeof window !== 'undefined'
-    ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000')
-    : 'http://localhost:3000'
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('API Error:', error.config?.url, error.response?.status, error.response?.data)
-    return Promise.reject(error)
+async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${API_BASE_URL}${path}`
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText)
+    throw new Error(`API ${res.status}: ${text}`)
   }
-)
+  return res.json()
+}
 
+// ═══════════════════════════════════════
 // Types
+// ═══════════════════════════════════════
+
+export interface NftListing {
+  id: number
+  on_chain_listing_id: number
+  seller: string
+  buyer: string | null
+  nft_contract: string
+  token_id: number
+  amount: number
+  asset_type: 'ERC721' | 'ERC20'
+  nft_chain_id: number
+  payment_chain_id: number
+  price: string
+  status: 'Active' | 'Sold' | 'Cancelled'
+  created_at: number
+}
+
+export interface AccountState {
+  address: string
+  nonce: number
+  balances: { asset_id: number; amount: number; chain_id: number }[]
+}
+
+export interface ReleaseProof {
+  listing_id: number
+  on_chain_listing_id: number
+  buyer: string
+  nft_contract: string
+  token_id: number
+  nft_chain_id: number
+  leaf: string
+  merkle_proof: string
+  nullifier: string
+}
 
 export interface VestingPosition {
   platform: string
@@ -35,31 +66,6 @@ export interface VestingPosition {
   status: string
 }
 
-export interface Listing {
-  id: number
-  seller: string
-  nft_contract: string
-  token_id: number
-  payment_token: string
-  price: string
-  active: boolean
-}
-
-export interface EnrichedListing extends Listing {
-  nft_name: string
-  nft_symbol: string
-  platform: string | null // "sablier", "hedgey", or null for generic
-}
-
-export interface NftMetadata {
-  contract: string
-  token_id: number
-  name: string
-  symbol: string
-  token_uri: string
-  image: string
-}
-
 export interface NftPosition {
   contract: string
   token_id: number
@@ -68,33 +74,78 @@ export interface NftPosition {
   token_uri: string
 }
 
+export interface ChainInfo {
+  chain_id: number
+  name: string
+}
+
+// ═══════════════════════════════════════
 // API
+// ═══════════════════════════════════════
 
 export const api = {
+  // Health
   async healthCheck() {
-    const response = await apiClient.get('/health')
-    return response.data
+    return fetchAPI<{ status: string }>('/health')
   },
 
+  // Sequencer listings (cross-chain, processed by sequencer)
+  async getNftListings(): Promise<{ listings: NftListing[]; total: number }> {
+    return fetchAPI('/api/v1/nft-listings')
+  },
+
+  async getNftListing(id: number): Promise<NftListing> {
+    return fetchAPI(`/api/v1/nft-listing/${id}`)
+  },
+
+  // On-chain escrow listings (raw from contract events)
+  async getEscrowListings(): Promise<{ listings: NftListing[]; total: number }> {
+    return fetchAPI('/api/v1/listings')
+  },
+
+  // Release proof for claiming
+  async getReleaseProof(listingId: number): Promise<ReleaseProof> {
+    return fetchAPI(`/api/v1/nft-release-proof/${listingId}`)
+  },
+
+  // Account state (balances + nonce in sequencer)
+  async getAccountState(address: string): Promise<AccountState> {
+    return fetchAPI(`/api/v1/account/${address}`)
+  },
+
+  // Submit transaction (BuyNft)
+  async submitTransaction(tx: {
+    kind: 'BuyNft'
+    from: string
+    listing_id: number
+    nonce: number
+    signature: string
+  }): Promise<{ tx_hash: string; status: string }> {
+    return fetchAPI('/api/v1/transactions', {
+      method: 'POST',
+      body: JSON.stringify(tx),
+    })
+  },
+
+  // Vesting positions
   async getVestingPositions(address: string): Promise<{ positions: VestingPosition[]; total: number }> {
-    const response = await apiClient.get(`/api/v1/vesting/${address}`)
-    return response.data
+    return fetchAPI(`/api/v1/vesting/${address}`)
   },
 
-  async getListings(): Promise<{ listings: EnrichedListing[]; total: number }> {
-    const response = await apiClient.get('/api/v1/listings')
-    return response.data
+  // Generic NFTs
+  async getNfts(address: string, contracts?: string[]): Promise<{ address: string; nfts: NftPosition[]; total: number }> {
+    const params = contracts?.length ? `?contracts=${contracts.join(',')}` : ''
+    return fetchAPI(`/api/v1/nfts/${address}${params}`)
   },
 
-  async getListingDetail(id: number): Promise<{ listing: Listing; nft: NftMetadata | null; vesting: VestingPosition | null }> {
-    const response = await apiClient.get(`/api/v1/listing/${id}`)
-    return response.data
+  // Supported chains
+  async getChains(): Promise<{ chains: ChainInfo[] }> {
+    return fetchAPI('/api/v1/chains')
   },
 
-  async getNfts(address: string, contracts: string[]): Promise<{ address: string; nfts: NftPosition[]; total: number }> {
-    const params = contracts.length > 0 ? `?contracts=${contracts.join(',')}` : ''
-    const response = await apiClient.get(`/api/v1/nfts/${address}${params}`)
-    return response.data
+  // Current block
+  async getCurrentBlock(): Promise<{ current_block_id: number }> {
+    return fetchAPI('/api/v1/current_block')
   },
 }
 
