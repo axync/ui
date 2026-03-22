@@ -40,7 +40,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navLinks = [
     { href: '/', label: 'Marketplace' },
-    { href: '/list', label: 'Sell Position' },
+    { href: '/list', label: 'List Asset' },
     { href: '/portfolio', label: 'Portfolio' },
   ]
 

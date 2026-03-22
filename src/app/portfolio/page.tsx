@@ -3,33 +3,35 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useWallet } from '@/hooks/useWallet'
-import { api, EnrichedListing, VestingPosition } from '@/services/api'
-import { formatAmount, formatAddress } from '@/utils/transactions'
+import { api, NftListing, AccountState } from '@/services/api'
+import { getContracts } from '@/config/contracts'
+import { ethers } from 'ethers'
 
-type Tab = 'listings' | 'purchased'
+type Tab = 'listings' | 'balances'
 
 export default function Portfolio() {
   const { address } = useWallet()
   const [tab, setTab] = useState<Tab>('listings')
-  const [myListings, setMyListings] = useState<EnrichedListing[]>([])
-  const [positions, setPositions] = useState<VestingPosition[]>([])
+  const [listings, setListings] = useState<NftListing[]>([])
+  const [account, setAccount] = useState<AccountState | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadPortfolio = useCallback(async () => {
+  const loadData = useCallback(async () => {
+    if (!address) return
     setLoading(true)
     try {
-      const [listingsData, vestingData] = await Promise.all([
-        api.getListings(),
-        api.getVestingPositions(address!),
+      const [listingsData, accountData] = await Promise.all([
+        api.getNftListings(),
+        api.getAccountState(address).catch(() => null),
       ])
 
-      // Filter listings by current user — already enriched from API
-      const mine = listingsData.listings.filter(
-        (l) => l.seller.toLowerCase() === address!.toLowerCase()
+      // Filter listings where user is seller or buyer
+      const myListings = listingsData.listings.filter(
+        l => l.seller.toLowerCase() === address.toLowerCase() ||
+             (l.buyer && l.buyer.toLowerCase() === address.toLowerCase())
       )
-
-      setMyListings(mine)
-      setPositions(vestingData.positions || [])
+      setListings(myListings)
+      setAccount(accountData)
     } catch (err) {
       console.error('Failed to load portfolio:', err)
     } finally {
@@ -38,111 +40,99 @@ export default function Portfolio() {
   }, [address])
 
   useEffect(() => {
-    if (address) loadPortfolio()
-  }, [address, loadPortfolio])
-
-  function formatTime(ts: number): string {
-    if (!ts) return '—'
-    return new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
-
-  function getPlatformIcon(listing: EnrichedListing) {
-    if (listing.platform === 'sablier') return { letter: 'S', bg: 'bg-amber/10 text-amber' }
-    if (listing.platform === 'hedgey') return { letter: 'H', bg: 'bg-green/10 text-green' }
-    if (listing.nft_symbol) return { letter: listing.nft_symbol.charAt(0).toUpperCase(), bg: 'bg-ice/10 text-ice' }
-    return { letter: 'N', bg: 'bg-bg4 text-tx3' }
-  }
-
-  function getListingName(listing: EnrichedListing): string {
-    if (listing.platform) return listing.platform.charAt(0).toUpperCase() + listing.platform.slice(1)
-    if (listing.nft_name) return listing.nft_name
-    return formatAddress(listing.nft_contract)
-  }
+    loadData()
+  }, [loadData])
 
   if (!address) {
     return (
-      <div className="card p-12 text-center fi">
+      <div className="card p-12 text-center">
         <p className="text-tx2 text-lg font-medium">Connect your wallet</p>
-        <p className="text-tx3 text-sm mt-2">View your listings and vesting positions</p>
+        <p className="text-tx3 text-sm mt-2">View your listings and sequencer balances</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 fi">
-      <div className="fi1">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-bold text-tx">Portfolio</h1>
-        <p className="text-tx3 text-sm mt-1">Your listings and vesting positions</p>
+        <p className="text-tx3 text-sm mt-1 font-mono">{address}</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 fi2">
-        {([
-          { key: 'listings' as Tab, label: 'My Listings', count: myListings.length },
-          { key: 'purchased' as Tab, label: 'Vesting Positions', count: positions.length },
-        ]).map((t) => (
+      <div className="flex items-center gap-2">
+        {(['listings', 'balances'] as const).map((t) => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
+            key={t}
+            onClick={() => setTab(t)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              tab === t.key
+              tab === t
                 ? 'bg-lav/10 text-lav border border-lav/20'
                 : 'text-tx3 hover:text-tx hover:bg-bg3 border border-transparent'
             }`}
           >
-            {t.label}
-            <span className="ml-1.5 text-xs opacity-60">{t.count}</span>
+            {t === 'listings' ? 'My Listings' : 'Sequencer Balances'}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="card p-12 text-center text-tx3">Loading portfolio...</div>
+        <div className="card p-12 text-center text-tx3">Loading...</div>
       ) : tab === 'listings' ? (
-        /* My Listings */
-        myListings.length === 0 ? (
+        /* Listings Tab */
+        listings.length === 0 ? (
           <div className="card p-12 text-center">
-            <p className="text-tx2 text-lg font-medium">No active listings</p>
-            <p className="text-tx3 text-sm mt-2">List an NFT to start selling</p>
+            <p className="text-tx2 text-lg font-medium">No listings yet</p>
+            <p className="text-tx3 text-sm mt-2">List your first asset</p>
             <Link href="/list" className="btn btn-primary mt-4 inline-block">
-              Sell NFT
+              List Asset
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4 fi3">
-            {myListings.map((listing) => {
-              const isEth = listing.payment_token === '0x0000000000000000000000000000000000000000'
-              const icon = getPlatformIcon(listing)
-              const name = getListingName(listing)
+          <div className="grid gap-4">
+            {listings.map((listing) => {
+              const isSeller = listing.seller.toLowerCase() === address.toLowerCase()
+              const priceEth = ethers.formatEther(listing.price)
+              const assetChain = getContracts(listing.nft_chain_id)
+              const paymentChain = getContracts(listing.payment_chain_id)
 
               return (
-                <Link key={listing.id} href={`/listing/${listing.id}`} className="card hover:border-lav/30 transition-all group">
-                  <div className="p-5 flex items-center gap-6">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${icon.bg}`}>
-                      {icon.letter}
+                <Link key={`${listing.id}-${listing.on_chain_listing_id}`} href={`/listing/${listing.id}`} className="card hover:border-lav/30 transition-all">
+                  <div className="p-5 flex items-center gap-5">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
+                      listing.asset_type === 'ERC20' ? 'bg-green/10 text-green' : 'bg-lav/10 text-lav'
+                    }`}>
+                      {listing.asset_type === 'ERC20' ? '$' : 'N'}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-tx font-medium">{name} #{listing.token_id}</span>
-                        <span className={`badge-${listing.active ? 'green' : 'muted'}`}>
-                          {listing.active ? 'Active' : 'Sold'}
+                        <span className="text-tx font-medium">
+                          {listing.asset_type === 'ERC20'
+                            ? `${ethers.formatEther(listing.amount?.toString() || '0')} tokens`
+                            : `NFT #${listing.token_id}`
+                          }
                         </span>
-                        {listing.platform && <span className="badge-lav">{listing.platform}</span>}
-                        {!listing.platform && listing.nft_symbol && <span className="badge-ice">{listing.nft_symbol}</span>}
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          isSeller ? 'bg-amber/10 text-amber' : 'bg-ice/10 text-ice'
+                        }`}>
+                          {isSeller ? 'SELLING' : 'BOUGHT'}
+                        </span>
                       </div>
                       <div className="text-tx3 text-sm mt-0.5">
-                        {listing.nft_name || formatAddress(listing.nft_contract)}
+                        {assetChain?.shortName} &rarr; {paymentChain?.shortName}
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="text-tx font-semibold">
-                        {formatAmount(BigInt(listing.price))} {isEth ? 'ETH' : 'USDC'}
+                      <div className="text-tx font-semibold">{priceEth} ETH</div>
+                      <div className={`text-xs font-medium ${
+                        listing.status === 'Active' ? 'text-green' :
+                        listing.status === 'Sold' ? 'text-lav' : 'text-red'
+                      }`}>
+                        {listing.status}
                       </div>
                     </div>
-
-                    <div className="text-tx3 group-hover:text-lav transition-colors">&rarr;</div>
                   </div>
                 </Link>
               )
@@ -150,74 +140,46 @@ export default function Portfolio() {
           </div>
         )
       ) : (
-        /* Vesting Positions */
-        positions.length === 0 ? (
-          <div className="card p-12 text-center">
-            <p className="text-tx2 text-lg font-medium">No vesting positions found</p>
-            <p className="text-tx3 text-sm mt-2">Sablier and Hedgey positions will appear here</p>
-          </div>
-        ) : (
-          <div className="grid gap-4 fi3">
-            {positions.map((pos) => {
-              const progress = (() => {
-                if (!pos.start_time || !pos.end_time) return 0
-                const now = Math.floor(Date.now() / 1000)
-                const total = pos.end_time - pos.start_time
-                if (total <= 0) return 100
-                const elapsed = now - pos.start_time
-                return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)))
-              })()
+        /* Balances Tab */
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-bold text-tx">Sequencer Balances</h3>
+          <p className="text-tx3 text-sm">
+            Balances deposited into AxyncVault and tracked by the sequencer
+          </p>
 
-              return (
-                <div key={`${pos.contract}-${pos.token_id}`} className="card p-5">
-                  <div className="flex items-center gap-6">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
-                      pos.platform === 'sablier' ? 'bg-amber/10 text-amber' : 'bg-green/10 text-green'
-                    }`}>
-                      {pos.platform === 'sablier' ? 'S' : 'H'}
+          {!account || !account.balances || account.balances.length === 0 ? (
+            <div className="bg-bg2 rounded-xl p-6 text-center">
+              <p className="text-tx3 text-sm">No balances in sequencer</p>
+              <p className="text-tx3 text-xs mt-1">Deposit ETH into AxyncVault to start trading</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {account.balances.map((b, i) => (
+                <div key={i} className="flex items-center justify-between bg-bg2 rounded-xl p-4">
+                  <div>
+                    <div className="text-tx font-medium">
+                      Asset #{b.asset_id} {b.asset_id === 0 ? '(ETH)' : ''}
                     </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-tx font-medium">
-                          {pos.platform.charAt(0).toUpperCase() + pos.platform.slice(1)} #{pos.token_id}
-                        </span>
-                        <span className={`badge-${pos.status === 'Streaming' ? 'green' : pos.status === 'Settled' ? 'lav' : 'muted'}`}>
-                          {pos.status}
-                        </span>
-                        {pos.is_transferable && <span className="badge-ice">Transferable</span>}
-                      </div>
-                      <div className="text-tx3 text-sm mt-0.5">
-                        {formatAmount(BigInt(pos.total_amount))} tokens &middot; {formatTime(pos.start_time)} &rarr; {formatTime(pos.end_time)}
-                      </div>
-
-                      {/* Progress bar */}
-                      <div className="mt-2 flex items-center gap-3">
-                        <div className="flex-1 h-1.5 bg-bg4 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-lav to-ice rounded-full" style={{ width: `${progress}%` }} />
-                        </div>
-                        <span className="text-tx3 text-xs">{progress}%</span>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      {pos.withdrawable_amount !== '0' && (
-                        <div className="text-green text-sm font-medium">
-                          {formatAmount(BigInt(pos.withdrawable_amount))} claimable
-                        </div>
-                      )}
-                      {pos.is_transferable && (
-                        <Link href="/list" className="text-lav text-xs hover:underline mt-1 inline-block">
-                          Sell &rarr;
-                        </Link>
-                      )}
+                    <div className="text-tx3 text-xs">
+                      Chain: {getContracts(b.chain_id)?.shortName || b.chain_id}
                     </div>
                   </div>
+                  <div className="text-tx font-semibold">
+                    {ethers.formatEther(b.amount.toString())}
+                  </div>
                 </div>
-              )
-            })}
+              ))}
+            </div>
+          )}
+
+          <div className="bg-bg2 rounded-xl p-4 flex justify-between items-center">
+            <div>
+              <div className="text-tx2 text-sm font-medium">Nonce</div>
+              <div className="text-tx3 text-xs">Transaction counter in sequencer</div>
+            </div>
+            <div className="text-tx font-mono">{account?.nonce || 0}</div>
           </div>
-        )
+        </div>
       )}
     </div>
   )
