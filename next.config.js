@@ -1,19 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   async rewrites() {
+    const backend = process.env.BACKEND_URL || 'http://localhost:8080'
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3000/api/:path*',
-      },
-      {
-        source: '/jsonrpc',
-        destination: 'http://localhost:3000/jsonrpc',
+        destination: `${backend}/api/:path*`,
       },
       {
         source: '/health',
-        destination: 'http://localhost:3000/health',
+        destination: `${backend}/health`,
       },
     ]
   },
