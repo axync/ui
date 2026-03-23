@@ -14,4 +14,21 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: root
           key: ${{ secrets.DEPLOY_KEY }}
-          script: /opt/axync/scripts/deploy-ui.sh
+          script: |
+            cd /opt/axync/ui
+            git fetch origin main
+            git reset --hard origin/main
+            docker build \
+              --build-arg NEXT_PUBLIC_API_URL=/api \
+              --build-arg NEXT_PUBLIC_ETHEREUM_VAULT_CONTRACT=0xC0659E7a7b4E81AFe607A7aECd57A7E8E23Ba164 \
+              --build-arg NEXT_PUBLIC_ETHEREUM_VERIFIER_CONTRACT=0xa7678aAa71E016A3b31D993aDdC6bfE579413d9D \
+              --build-arg NEXT_PUBLIC_ETHEREUM_ESCROW_CONTRACT=0x58b91CCB7F4DC0f749573f55f13f8892A5189f53 \
+              --build-arg NEXT_PUBLIC_BASE_VAULT_CONTRACT=0xE047A68aaB75C479aF21bA34F5fE931c13ed770a \
+              --build-arg NEXT_PUBLIC_BASE_VERIFIER_CONTRACT=0x80dF1a4c753B162aDd23751B4D670c3Ee88e2D1D \
+              --build-arg NEXT_PUBLIC_BASE_ESCROW_CONTRACT=0xa0654945B0d571c78Bf3D1cE4d3cfF45B76FCF99 \
+              --build-arg NEXT_PUBLIC_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com \
+              --build-arg NEXT_PUBLIC_BASE_RPC_URL=https://base-sepolia-rpc.publicnode.com \
+              --build-arg NEXT_PUBLIC_CHAIN_ID=11155111 \
+              -t axync/ui:latest .
+            cd /opt/axync
+            docker compose up -d frontend
