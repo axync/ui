@@ -66,7 +66,11 @@ export default function CreateDealPage() {
         setTokenSymbol(sym)
       }
     } catch (e: any) {
-      setError('Could not read contract. Make sure you are on the right network.')
+      if (e?.code === 'UNCONFIGURED_NAME') {
+        setError('Invalid contract address format.')
+      } else {
+        setError('Could not read contract. Make sure you are on the right network.')
+      }
     }
   }
 
@@ -213,7 +217,7 @@ export default function CreateDealPage() {
             <label className="text-tx2 text-xs font-medium uppercase tracking-wider block mb-2">Asset Type</label>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => setAssetType('erc20')}
+                onClick={() => { setAssetType('erc20'); setTokenContract(''); setTokenSymbol(''); setTokenAmount(''); setTokenId(''); setTokenDecimals(18); setError('') }}
                 className={`py-3 rounded-xl text-sm font-medium transition-all border ${
                   assetType === 'erc20'
                     ? 'bg-green/8 text-green border-green/20'
@@ -221,10 +225,10 @@ export default function CreateDealPage() {
                 }`}
               >
                 <div className="text-lg mb-0.5">$</div>
-                Token (ERC-20)
+                Token
               </button>
               <button
-                onClick={() => setAssetType('erc721')}
+                onClick={() => { setAssetType('erc721'); setTokenContract(''); setTokenSymbol(''); setTokenAmount(''); setTokenId(''); setTokenDecimals(18); setError('') }}
                 className={`py-3 rounded-xl text-sm font-medium transition-all border ${
                   assetType === 'erc721'
                     ? 'bg-lav/8 text-lav border-lav/20'
@@ -232,7 +236,7 @@ export default function CreateDealPage() {
                 }`}
               >
                 <div className="text-lg mb-0.5">N</div>
-                NFT (ERC-721)
+                NFT
               </button>
             </div>
           </div>
