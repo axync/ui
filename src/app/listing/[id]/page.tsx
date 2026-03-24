@@ -90,10 +90,19 @@ export default function ListingPage() {
     setError('')
 
     try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x' + listing!.payment_chain_id.toString(16) }],
-      })
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x' + listing!.payment_chain_id.toString(16) }],
+        })
+      } catch (switchErr: any) {
+        if (switchErr.code === 4001) {
+          setError('Please switch to the payment chain to continue')
+          setTxLoading(false)
+          return
+        }
+        throw switchErr
+      }
 
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
@@ -104,7 +113,11 @@ export default function ListingPage() {
 
       setBuyStep('buy')
     } catch (e: any) {
-      setError(e.reason || e.message || 'Deposit failed')
+      if (e.code === 4001 || e.code === 'ACTION_REJECTED') {
+        setError('Transaction rejected')
+      } else {
+        setError(e.reason || e.shortMessage || 'Deposit failed')
+      }
     } finally {
       setTxLoading(false)
     }
@@ -161,7 +174,11 @@ export default function ListingPage() {
         setProof(proofData)
       } catch {}
     } catch (e: any) {
-      setError(e.reason || e.message || 'BuyNft failed')
+      if (e.code === 4001 || e.code === 'ACTION_REJECTED') {
+        setError('Transaction rejected')
+      } else {
+        setError(e.reason || e.shortMessage || 'Purchase failed')
+      }
     } finally {
       setTxLoading(false)
     }
@@ -174,21 +191,28 @@ export default function ListingPage() {
     setError('')
 
     try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x' + listing!.nft_chain_id.toString(16) }],
-      })
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x' + listing!.nft_chain_id.toString(16) }],
+        })
+      } catch (switchErr: any) {
+        if (switchErr.code === 4001) {
+          setError('Please switch to the asset chain to claim')
+          setTxLoading(false)
+          return
+        }
+        throw switchErr
+      }
 
       const provider = new ethers.BrowserProvider(window.ethereum)
       const escrow = new ethers.Contract(assetChain.escrow, ESCROW_ABI, provider)
 
       // Poll for withdrawalsRoot
+      setError('Waiting for relayer to submit proof on-chain...')
       for (let i = 0; i < 60; i++) {
         const root = await escrow.withdrawalsRoot()
         if (root === proof.leaf || i > 50) break
-        if (i % 10 === 0 && i > 0) {
-          setError(`Waiting for relayer to submit proof on-chain... (${i}s)`)
-        }
         await new Promise(r => setTimeout(r, 3000))
       }
       setError('')
@@ -206,7 +230,11 @@ export default function ListingPage() {
       setClaimTxHash(receipt.hash)
       setBuyStep('done')
     } catch (e: any) {
-      setError(e.reason || e.message || 'Claim failed')
+      if (e.code === 4001 || e.code === 'ACTION_REJECTED') {
+        setError('Transaction rejected')
+      } else {
+        setError(e.reason || e.shortMessage || 'Claim failed')
+      }
     } finally {
       setTxLoading(false)
     }

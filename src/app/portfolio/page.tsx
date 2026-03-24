@@ -32,7 +32,7 @@ export default function Portfolio() {
       setListings(myListings)
       setAccount(accountData)
     } catch (err) {
-      console.error('Failed to load portfolio:', err)
+      // Silent fail — portfolio shows empty state
     } finally {
       setLoading(false)
     }
