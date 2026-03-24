@@ -80,7 +80,7 @@ export default function Marketplace() {
       const data = await api.getNftListings()
       setListings(data.listings.filter(l => l.status === 'Active'))
     } catch (err) {
-      console.error('Failed to load listings:', err)
+      // Silent fail — marketplace shows empty state
     } finally {
       setLoading(false)
     }

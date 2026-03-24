@@ -117,7 +117,11 @@ export default function CreateDealPage() {
 
       setStep('confirm')
     } catch (e: any) {
-      setError(e.reason || e.message || 'Transaction failed')
+      if (e.code === 4001 || e.code === 'ACTION_REJECTED') {
+        setError('Transaction rejected')
+      } else {
+        setError(e.reason || e.shortMessage || 'Transaction failed')
+      }
     } finally {
       setLoading(false)
     }
