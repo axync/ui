@@ -110,7 +110,7 @@ export default function CreateDealPage() {
         }
 
         // List
-        const tx = await escrow.listNft(tokenContract, tokenId, priceWei, paymentChainId)
+        const tx = await escrow.list(tokenContract, tokenId, priceWei, paymentChainId)
         const receipt = await tx.wait()
         setTxHash(receipt.hash)
       }

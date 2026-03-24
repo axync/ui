@@ -2,7 +2,7 @@
 
 export const ESCROW_ABI = [
   // List NFT
-  'function listNft(address nftContract, uint256 tokenId, uint256 price, uint256 paymentChainId) external',
+  'function list(address nftContract, uint256 tokenId, uint256 price, uint256 paymentChainId) external',
   // List ERC-20
   'function listToken(address tokenContract, uint256 amount, uint256 price, uint256 paymentChainId) external',
   // Claim (buyer calls after ZK proof)
