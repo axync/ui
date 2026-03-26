@@ -18,6 +18,9 @@ export const metadata: Metadata = {
     'Ethereum',
     'Base',
   ],
+  alternates: {
+    canonical: 'https://app.axync.xyz',
+  },
   openGraph: {
     title: 'Axync — Cross-Chain Settlement',
     description:
@@ -32,8 +35,21 @@ export const metadata: Metadata = {
     title: 'Axync — Cross-Chain Settlement',
     description:
       'Move value across chains. No bridge required. Every settlement verified by zero-knowledge proofs.',
+    site: '@axync_xyz',
+    creator: '@axync_xyz',
   },
   metadataBase: new URL('https://app.axync.xyz'),
+}
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Axync',
+  url: 'https://app.axync.xyz',
+  logo: 'https://app.axync.xyz/icon.svg',
+  description:
+    'Cross-chain marketplace for tokens and vesting positions. ZK-powered settlement.',
+  sameAs: ['https://x.com/axync_xyz'],
 }
 
 export default function RootLayout({
@@ -44,6 +60,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <Script
           id="microsoft-clarity"
           strategy="afterInteractive"
@@ -53,6 +71,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
           <LayoutWrapper>{children}</LayoutWrapper>
         </body>
     </html>
