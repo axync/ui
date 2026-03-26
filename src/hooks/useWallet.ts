@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 
+const DISCONNECTED_KEY = 'axync_wallet_disconnected'
+
 function getProvider(): typeof window.ethereum | null {
   if (typeof window === 'undefined') return null
   if (!window.ethereum) return null
@@ -34,6 +36,14 @@ export function useWallet(): UseWalletResult {
     let lastAccount: string | null = null
 
     const checkAccounts = async () => {
+      if (sessionStorage.getItem(DISCONNECTED_KEY) === 'true') {
+        if (lastAccount !== null) {
+          lastAccount = null
+          setAddress(null)
+        }
+        return
+      }
+
       const accounts = await safeRequest('eth_accounts')
       if (!accounts) return
 

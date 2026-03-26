@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatAddress } from '@/utils/transactions'
+
+const DISCONNECTED_KEY = 'axync_wallet_disconnected'
 
 export default function WalletConnect() {
   const [address, setAddress] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [walletInstalled, setWalletInstalled] = useState(false)
+  const disconnectedRef = useRef(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -16,9 +19,13 @@ export default function WalletConnect() {
     setWalletInstalled(hasWallet)
     if (!hasWallet || !provider) return
 
+    disconnectedRef.current = sessionStorage.getItem(DISCONNECTED_KEY) === 'true'
+
     let lastAccount: string | null = null
 
     const checkAccounts = async () => {
+      if (disconnectedRef.current) return
+
       try {
         const accounts = await provider.request({ method: 'eth_accounts' })
         const current = accounts.length > 0 ? accounts[0] : null
@@ -35,7 +42,9 @@ export default function WalletConnect() {
 
     const interval = setInterval(checkAccounts, 2000)
 
-    const handleCustomEvent = () => checkAccounts()
+    const handleCustomEvent = () => {
+      if (!disconnectedRef.current) checkAccounts()
+    }
     window.addEventListener('accountsChanged', handleCustomEvent)
 
     return () => {
@@ -49,14 +58,8 @@ export default function WalletConnect() {
 
     setIsConnecting(true)
     try {
-      try {
-        await window.ethereum.request({
-          method: 'wallet_revokePermissions',
-          params: [{ eth_accounts: {} }],
-        })
-      } catch {
-        // Ignore - permissions may not exist
-      }
+      disconnectedRef.current = false
+      sessionStorage.removeItem(DISCONNECTED_KEY)
 
       await window.ethereum.request({
         method: 'wallet_requestPermissions',
@@ -80,24 +83,11 @@ export default function WalletConnect() {
     }
   }
 
-  const disconnect = async () => {
-    try {
-      if (window.ethereum) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_revokePermissions',
-            params: [{ eth_accounts: {} }],
-          })
-        } catch {
-          // Ignore
-        }
-      }
-    } catch {
-      // Ignore
-    } finally {
-      setAddress(null)
-      window.dispatchEvent(new Event('accountsChanged'))
-    }
+  const disconnect = () => {
+    disconnectedRef.current = true
+    sessionStorage.setItem(DISCONNECTED_KEY, 'true')
+    setAddress(null)
+    window.dispatchEvent(new Event('accountsChanged'))
   }
 
   if (address) {
